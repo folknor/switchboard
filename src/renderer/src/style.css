@@ -458,22 +458,24 @@ body { display: flex; flex-direction: column; }
 }
 
 .sessions-more-toggle {
-  padding: 4px 10px;
-  margin: 4px 12px 10px 40px;
+  padding: 6px 12px;
+  margin: 2px 0;
   font-size: 11px;
   font-weight: 500;
   color: #555568;
   cursor: pointer;
   user-select: none;
   transition: all 0.15s;
-  border-radius: 5px;
-  display: inline-block;
-  background: rgba(255,255,255,0.03);
+  display: block;
+  text-align: center;
+  background: rgba(255,255,255,0.02);
+  border-top: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 
 .sessions-more-toggle:hover {
   color: #8088ff;
-  background: rgba(120,130,255,0.08);
+  background: rgba(120,130,255,0.06);
 }
 
 /* ---- Slug groups ---- */

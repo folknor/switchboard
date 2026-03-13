@@ -493,14 +493,9 @@ export function renderProjects(
       visible = allItems;
     } else {
       let count: number = 0;
-      const ageCutoff: number = Date.now() - sessionMaxAgeDays * 86400000;
       for (const item of allItems) {
-        // Running and pinned always show; others must be within count AND age limit
-        if (
-          item.running ||
-          item.pinned ||
-          (count < visibleSessionCount && item.sortTime >= ageCutoff)
-        ) {
+        // Running and pinned always show; others count toward the visible limit
+        if (item.running || item.pinned || count < visibleSessionCount) {
           visible.push(item);
           count++;
         } else {

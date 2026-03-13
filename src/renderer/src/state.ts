@@ -172,7 +172,7 @@ export let cachedAllProjects: ProjectObj[] = [];
 export let activePtyIds: Set<string> = new Set();
 export let activeTab: string = "sessions";
 export let cachedPlans: PlanInfo[] = [];
-export let visibleSessionCount: number = 10;
+export let visibleSessionCount: number = 5;
 export let sessionMaxAgeDays: number = 3;
 
 export function setCachedProjects(v: ProjectObj[]): void {

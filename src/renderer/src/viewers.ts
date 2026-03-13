@@ -1065,7 +1065,7 @@ export async function openSettingsViewer(
           <div class="settings-field-header">
             <span class="settings-label">Hide Sessions Older Than (days)</span>
           </div>
-          <div class="settings-hint">Sessions older than this are hidden behind "+N older" even if under the count limit</div>
+          <div class="settings-hint">Projects with no sessions newer than this are auto-collapsed</div>
           <input type="number" class="settings-input" id="sv-max-age" min="1" max="365" value="${maxAgeValue}">
         </div>`
             : ""
