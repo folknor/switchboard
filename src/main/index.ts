@@ -1,3 +1,5 @@
+import process from "node:process";
+import { randomUUID } from "crypto";
 import {
   app,
   BrowserWindow,
@@ -7,38 +9,37 @@ import {
   screen,
   shell,
 } from "electron";
-import { Worker } from "worker_threads";
-import { randomUUID } from "crypto";
-import path from "path";
-import fs from "fs";
-import os from "os";
-import pty from "node-pty";
 import log from "electron-log";
 import { autoUpdater as _autoUpdater } from "electron-updater";
+import fs from "fs";
+import pty from "node-pty";
+import os from "os";
+import path from "path";
+import { Worker } from "worker_threads";
 import {
-  getAllMeta,
-  toggleStar,
-  setName,
-  setArchived,
-  isCachePopulated,
+  deleteCachedFolder,
+  deleteCachedSession,
+  deleteSearchFolder,
+  deleteSearchSession,
+  deleteSearchType,
+  deleteSetting,
   getAllCached,
+  getAllFolderMeta,
+  getAllMeta,
   getCachedByFolder,
   getCachedFolder,
-  upsertCachedSessions,
-  deleteCachedSession,
-  deleteCachedFolder,
   getFolderMeta,
-  getAllFolderMeta,
-  setFolderMeta,
-  upsertSearchEntries,
-  deleteSearchSession,
-  deleteSearchFolder,
-  deleteSearchType,
-  searchByType,
-  isSearchIndexPopulated,
   getSetting,
+  isCachePopulated,
+  isSearchIndexPopulated,
+  searchByType,
+  setArchived,
+  setFolderMeta,
+  setName,
   setSetting,
-  deleteSetting,
+  toggleStar,
+  upsertCachedSessions,
+  upsertSearchEntries,
 } from "./db";
 
 log.transports.file.level = app.isPackaged ? "info" : "debug";
@@ -56,8 +57,7 @@ process.on("unhandledRejection", (reason) => {
 const cleanPtyEnv = Object.fromEntries(
   Object.entries(process.env).filter(
     ([k]) =>
-      !k.startsWith("ELECTRON_") &&
-      !k.startsWith("GOOGLE_API_KEY") &&
+      !(k.startsWith("ELECTRON_") || k.startsWith("GOOGLE_API_KEY")) &&
       k !== "NODE_OPTIONS" &&
       k !== "ORIGINAL_XDG_CURRENT_DESKTOP",
   ),
@@ -114,7 +114,7 @@ let mainWindow = null;
 function createWindow() {
   // Restore saved window bounds
   const savedBounds = getSetting("global")?.windowBounds;
-  let bounds = { width: 1400, height: 900 };
+  const bounds = { width: 1400, height: 900 };
 
   let restorePosition = null;
   if (savedBounds && savedBounds.width && savedBounds.height) {
@@ -836,7 +836,7 @@ ipcMain.handle("open-external", (_event, url) => {
 
 ipcMain.handle("get-projects", (_event, showArchived) => {
   try {
-    const needsPopulate = !isCachePopulated() || !isSearchIndexPopulated();
+    const needsPopulate = !(isCachePopulated() && isSearchIndexPopulated());
 
     if (needsPopulate) {
       populateCacheViaWorker();
@@ -1051,14 +1051,12 @@ ipcMain.handle("read-memory", (_event, filePath) => {
 });
 
 // --- IPC: search ---
-ipcMain.handle("search", (_event, type, query) => {
-  return searchByType(type, query, 50);
-});
+ipcMain.handle("search", (_event, type, query) =>
+  searchByType(type, query, 50),
+);
 
 // --- IPC: settings ---
-ipcMain.handle("get-setting", (_event, key) => {
-  return getSetting(key);
-});
+ipcMain.handle("get-setting", (_event, key) => getSetting(key));
 
 ipcMain.handle("set-setting", (_event, key, value) => {
   setSetting(key, value);
@@ -1590,7 +1588,7 @@ function detectSessionTransitions(folder) {
       !session.knownJsonlFiles ||
       session.projectFolder !== folder
     ) {
-      if (!session.exited && !session.isPlainTerminal && session.forkFrom) {
+      if (!(session.exited || session.isPlainTerminal) && session.forkFrom) {
         log.info(
           `[fork-detect] skipped session=${sessionId} forkFrom=${session.forkFrom || "none"} reason=${session.exited ? "exited" : session.isPlainTerminal ? "terminal" : !session.knownJsonlFiles ? "noKnown" : "folderMismatch(" + session.projectFolder + " vs " + folder + ")"}`,
         );
@@ -1617,10 +1615,12 @@ function detectSessionTransitions(folder) {
 
       // File exists but has no parseable content yet — skip and retry next cycle
       if (
-        !signals.forkedFrom &&
-        !signals.parentSessionId &&
-        !signals.slug &&
-        !signals.planContent
+        !(
+          signals.forkedFrom ||
+          signals.parentSessionId ||
+          signals.slug ||
+          signals.planContent
+        )
       ) {
         emptyFiles.add(newFile);
         log.debug(

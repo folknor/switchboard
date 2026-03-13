@@ -1,30 +1,30 @@
 import {
-  EditorView,
-  keymap,
-  lineNumbers,
-  highlightActiveLine,
-  highlightActiveLineGutter,
-  drawSelection,
-  highlightSpecialChars,
-} from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
-import {
   defaultKeymap,
-  indentWithTab,
   history,
   historyKeymap,
+  indentWithTab,
 } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { languages } from "@codemirror/language-data";
 import {
-  syntaxHighlighting,
-  HighlightStyle,
-  indentOnInput,
   bracketMatching,
   foldGutter,
   foldKeymap,
+  HighlightStyle,
+  indentOnInput,
+  syntaxHighlighting,
 } from "@codemirror/language";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { languages } from "@codemirror/language-data";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { EditorState } from "@codemirror/state";
+import {
+  drawSelection,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
 import { dracula } from "@ddietr/codemirror-themes/theme/dracula";
 import { tags } from "@lezer/highlight";
 

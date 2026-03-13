@@ -1,13 +1,13 @@
 import "@xterm/xterm/css/xterm.css";
 import "./style.css";
-import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { Terminal } from "@xterm/xterm";
 import morphdom from "morphdom";
 import {
-  createPlanEditor,
-  CMEditorView,
   CMEditorState,
+  CMEditorView,
+  createPlanEditor,
 } from "./codemirror-setup";
 
 const statusBarInfo = document.getElementById("status-bar-info");
@@ -734,7 +734,7 @@ const terminalHeaderPtyTitle = document.getElementById(
 );
 
 function updatePtyTitle() {
-  if (!activeSessionId || !terminalHeaderPtyTitle) return;
+  if (!(activeSessionId && terminalHeaderPtyTitle)) return;
   const entry = openSessions.get(activeSessionId);
   const title = entry?.ptyTitle || "";
   terminalHeaderPtyTitle.textContent = title;
@@ -1203,7 +1203,7 @@ function renderProjects(projects, isSearchResult) {
     }
 
     // Auto-collapse if most recent session is older than 5 days
-    if (!isSearchResult && !showStarredOnly && !showRunningOnly) {
+    if (!(isSearchResult || showStarredOnly || showRunningOnly)) {
       const mostRecent = filtered[0]?.modified;
       if (
         mostRecent &&
@@ -1386,7 +1386,8 @@ function rebindSidebarEvents(projects) {
     .querySelectorAll(".sessions-more-toggle")
     .forEach((moreBtn) => {
       const olderList = moreBtn.nextElementSibling;
-      if (!olderList || !olderList.classList.contains("sessions-older")) return;
+      if (!(olderList && olderList.classList.contains("sessions-older")))
+        return;
       const count = olderList.children.length;
       moreBtn.onclick = () => {
         const showing = olderList.style.display !== "none";
@@ -2350,7 +2351,7 @@ async function loadStats() {
   }
   // dailyActivity may be an array of {date, messageCount, ...} or an object
   const rawDaily = stats.dailyActivity || {};
-  let dailyMap = {};
+  const dailyMap = {};
   if (Array.isArray(rawDaily)) {
     for (const entry of rawDaily) {
       dailyMap[entry.date] = entry.messageCount || 0;
@@ -2985,7 +2986,7 @@ async function showNewSessionDialog(project) {
   dialog.className = "new-session-dialog";
 
   let selectedMode = effective.permissionMode || null;
-  let dangerousSkip = effective.dangerouslySkipPermissions || false;
+  let dangerousSkip = effective.dangerouslySkipPermissions;
 
   const modes = [
     { value: null, label: "Default", desc: "Prompt for all actions" },

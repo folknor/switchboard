@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
-import path from "path";
-import os from "os";
 import fs from "fs";
+import os from "os";
+import path from "path";
 
 const DATA_DIR = path.join(os.homedir(), ".switchboard");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });

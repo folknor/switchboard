@@ -1,6 +1,6 @@
-import { parentPort, workerData } from "worker_threads";
 import fs from "fs";
 import path from "path";
+import { parentPort, workerData } from "worker_threads";
 
 const PROJECTS_DIR = workerData.projectsDir;
 
