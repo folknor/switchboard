@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import process from "node:process";
 import Database from "better-sqlite3";
+import { app } from "electron";
 import log from "electron-log";
 import { runMigrations } from "./schema";
 import type {
@@ -15,7 +17,9 @@ import type {
 
 // --- Connection setup ---
 
-const DATA_DIR: string = path.join(os.homedir(), ".switchboard");
+const DATA_DIR: string = app.isPackaged
+  ? path.join(os.homedir(), ".switchboard")
+  : process.cwd();
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH: string = path.join(DATA_DIR, "switchboard.db");

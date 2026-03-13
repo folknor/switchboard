@@ -170,12 +170,13 @@ export function buildProjectsFromCache(showArchived: boolean): ProjectObj[] {
   const global = (getSetting("global") as Record<string, unknown>) || {};
   const hiddenProjects = new Set((global.hiddenProjects as string[]) || []);
 
-  // Group by folder
-  const folderMap = new Map<string, ProjectObj>();
+  // Group by projectPath (sessions from different Claude folders but same project merge)
+  const projectMap = new Map<string, ProjectObj>();
   for (const row of cachedRows) {
+    const pp = row.projectPath || row.folder;
     if (row.projectPath && hiddenProjects.has(row.projectPath)) continue;
-    if (!folderMap.has(row.folder)) {
-      folderMap.set(row.folder, {
+    if (!projectMap.has(pp)) {
+      projectMap.set(pp, {
         folder: row.folder,
         projectPath: row.projectPath,
         sessions: [],
@@ -196,7 +197,7 @@ export function buildProjectsFromCache(showArchived: boolean): ProjectObj[] {
       archived: meta?.archived || 0,
     };
     if (!showArchived && s.archived) continue;
-    (folderMap.get(row.folder) as ProjectObj).sessions.push(s);
+    (projectMap.get(pp) as ProjectObj).sessions.push(s);
   }
 
   // Include empty project directories (no sessions yet)
@@ -205,13 +206,14 @@ export function buildProjectsFromCache(showArchived: boolean): ProjectObj[] {
       .readdirSync(PROJECTS_DIR, { withFileTypes: true })
       .filter((d) => d.isDirectory() && d.name !== ".git");
     for (const d of dirs) {
-      if (!folderMap.has(d.name)) {
-        const projectPath = deriveProjectPath(
-          path.join(PROJECTS_DIR, d.name),
-          readerLog,
-        );
+      const projectPath = deriveProjectPath(
+        path.join(PROJECTS_DIR, d.name),
+        readerLog,
+      );
+      const key = projectPath || d.name;
+      if (!projectMap.has(key)) {
         if (projectPath && !hiddenProjects.has(projectPath)) {
-          folderMap.set(d.name, {
+          projectMap.set(key, {
             folder: d.name,
             projectPath,
             sessions: [],
@@ -227,7 +229,7 @@ export function buildProjectsFromCache(showArchived: boolean): ProjectObj[] {
   }
 
   const projects: ProjectObj[] = [];
-  for (const proj of folderMap.values()) {
+  for (const proj of projectMap.values()) {
     proj.sessions.sort(
       (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime(),
     );

@@ -30,6 +30,11 @@ pnpm lint          # Biome check (format + lint + assist)
 pnpm typecheck     # tsc --noEmit
 ```
 
+## Workflow
+
+- Do not commit unless explicitly asked
+- Do not push unless explicitly asked
+
 ## Code conventions
 
 - Biome enforces strict rules — run `pnpm lint` before committing

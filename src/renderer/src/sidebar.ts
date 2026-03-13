@@ -16,7 +16,6 @@ import {
   saveExpandedSlugs,
   searchInput,
   sessionMap,
-  sessionMaxAgeDays,
   setActiveSession,
   setCachedAllProjects,
   setCachedProjects,
@@ -569,14 +568,13 @@ export function renderProjects(
       sessionsList.appendChild(olderList);
     }
 
-    // Auto-collapse if most recent session is older than 5 days
+    // Start collapsed unless filtering or the project has an active session
     if (!(isSearchResult || showStarredOnly || showRunningOnly)) {
-      const mostRecent: string | undefined = filtered[0]?.modified;
-      if (
-        mostRecent &&
-        Date.now() - new Date(mostRecent).getTime() >
-          sessionMaxAgeDays * 86400000
-      ) {
+      const hasRunning: boolean = filtered.some(
+        (s: SessionObj) =>
+          activePtyIds.has(s.sessionId) || pendingSessions.has(s.sessionId),
+      );
+      if (!hasRunning) {
         header.classList.add("collapsed");
       }
     }

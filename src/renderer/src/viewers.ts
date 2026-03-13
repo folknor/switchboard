@@ -214,7 +214,6 @@ export function makeCollapsible(
   header.textContent = headerText;
   const body: HTMLPreElement = document.createElement("pre");
   body.className = "jsonl-tool-body";
-  body.style.display = startExpanded ? "" : "none";
   if (typeof bodyContent === "string") {
     body.textContent = bodyContent;
   } else {
@@ -227,6 +226,11 @@ export function makeCollapsible(
       body.textContent = String(bodyContent);
     }
   }
+  // Auto-expand short content (5 lines or fewer)
+  const lineCount: number = (body.textContent || "").split("\n").length;
+  const expanded: boolean = startExpanded || lineCount <= 5;
+  body.style.display = expanded ? "" : "none";
+  header.classList.toggle("expanded", expanded);
   header.onclick = (): void => {
     const showing: boolean = body.style.display !== "none";
     body.style.display = showing ? "none" : "";
@@ -237,12 +241,22 @@ export function makeCollapsible(
   return wrapper;
 }
 
+interface RenderedEntry {
+  element: HTMLDivElement;
+  /** "user" | "assistant" | "system" | "meta" */
+  role: string;
+}
+
 export function renderJsonlEntry(
   entry: Record<string, unknown>,
-): HTMLDivElement | null {
+): RenderedEntry | null {
   const ts = entry.timestamp;
   const timeStr: string = ts
-    ? new Date(ts as string | number).toLocaleTimeString()
+    ? new Date(ts as string | number).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
     : "";
 
   // --- custom-title ---
@@ -253,7 +267,7 @@ export function renderJsonlEntry(
       '<span class="jsonl-meta-icon">T</span> Title set: <strong>' +
       escapeHtml((entry.customTitle as string) || "") +
       "</strong>";
-    return div;
+    return { element: div, role: "meta" };
   }
 
   // --- system entries ---
@@ -281,7 +295,7 @@ export function renderJsonlEntry(
     } else {
       return null;
     }
-    return div;
+    return { element: div, role: "meta" };
   }
 
   // --- progress entries ---
@@ -305,7 +319,7 @@ export function renderJsonlEntry(
           makeCollapsible("jsonl-tool-result", "Output", output, false),
         );
       }
-      return div;
+      return { element: div, role: "meta" };
     }
     // Skip noisy progress types
     return null;
@@ -340,16 +354,32 @@ export function renderJsonlEntry(
   }
   if (!Array.isArray(contentBlocks)) return null;
 
+  // If user message contains only tool_result blocks, render without user bubble styling
+  const hasOnlyToolResults: boolean =
+    role === "user" &&
+    Array.isArray(contentBlocks) &&
+    contentBlocks.every(
+      // biome-ignore lint/suspicious/noExplicitAny: JSONL content blocks have dynamic shapes
+      (b: any) => b.type === "tool_result",
+    );
+
   const div: HTMLDivElement = document.createElement("div");
-  div.className = `jsonl-entry ${role === "user" ? "jsonl-user" : "jsonl-assistant"}`;
+  div.className = hasOnlyToolResults
+    ? "jsonl-entry jsonl-tool-results"
+    : `jsonl-entry ${role === "user" ? "jsonl-user" : "jsonl-assistant"}`;
 
   const labelRow: HTMLDivElement = document.createElement("div");
   labelRow.className = "jsonl-role-label";
-  labelRow.textContent = role === "user" ? "User" : "Assistant";
+  labelRow.textContent = hasOnlyToolResults
+    ? "System"
+    : role === "user"
+      ? "User"
+      : "Assistant";
   if (timeStr) {
     const tsSpan: HTMLSpanElement = document.createElement("span");
     tsSpan.className = "jsonl-ts";
     tsSpan.textContent = timeStr;
+    tsSpan.title = new Date(ts as string | number).toLocaleString();
     labelRow.appendChild(tsSpan);
   }
   div.appendChild(labelRow);
@@ -360,9 +390,18 @@ export function renderJsonlEntry(
         makeCollapsible("jsonl-thinking", "Thinking", block.thinking, false),
       );
     } else if (block.type === "text" && block.text) {
+      const trimmed: string = (block.text as string).replace(/^\n+/, "");
+      if (!trimmed) continue;
+      // Skip system/command XML noise from Claude Code internal messages
+      if (
+        /^<(local-command-|command-name|command-message|command-args|local-command-stdout)/.test(
+          trimmed,
+        )
+      )
+        continue;
       const textEl: HTMLDivElement = document.createElement("div");
       textEl.className = "jsonl-text";
-      textEl.innerHTML = renderJsonlText(block.text);
+      textEl.innerHTML = renderJsonlText(trimmed);
       div.appendChild(textEl);
     } else if (block.type === "tool_use") {
       div.appendChild(
@@ -389,7 +428,13 @@ export function renderJsonlEntry(
     }
   }
 
-  return div;
+  // If only the label row remains (all content blocks were skipped), discard
+  if (div.childNodes.length <= 1) return null;
+
+  const effectiveRole: string = hasOnlyToolResults
+    ? "system"
+    : (role as string);
+  return { element: div, role: effectiveRole };
 }
 
 export async function showJsonlViewer(session: SessionObj): Promise<void> {
@@ -416,12 +461,26 @@ export async function showJsonlViewer(session: SessionObj): Promise<void> {
   const entries: Record<string, unknown>[] =
     (result.entries as Record<string, unknown>[]) || [];
   let rendered: number = 0;
+  let lastRole: string | null = null;
+  let lastDiv: HTMLDivElement | null = null;
   for (const entry of entries) {
-    const el: HTMLDivElement | null = renderJsonlEntry(entry);
-    if (el) {
-      jsonlViewerBody.appendChild(el);
-      rendered++;
+    const result2: RenderedEntry | null = renderJsonlEntry(entry);
+    if (!result2) continue;
+    const { element, role: entryRole } = result2;
+
+    // Merge consecutive same-role messages (skip meta entries — they don't merge)
+    if (entryRole !== "meta" && entryRole === lastRole && lastDiv) {
+      // Append content children (skip the label row which is the first child)
+      const children: Node[] = Array.from(element.childNodes).slice(1);
+      for (const child of children) {
+        lastDiv.appendChild(child);
+      }
+    } else {
+      jsonlViewerBody.appendChild(element);
+      lastDiv = entryRole !== "meta" ? element : null;
+      lastRole = entryRole !== "meta" ? entryRole : null;
     }
+    rendered++;
   }
 
   if (rendered === 0) {

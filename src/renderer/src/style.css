@@ -459,7 +459,7 @@ body { display: flex; flex-direction: column; }
 
 .sessions-more-toggle {
   padding: 6px 12px;
-  margin: 2px 0;
+  margin: 6px 12px;
   font-size: 11px;
   font-weight: 500;
   color: #555568;
@@ -469,8 +469,8 @@ body { display: flex; flex-direction: column; }
   display: block;
   text-align: center;
   background: rgba(255,255,255,0.02);
-  border-top: 1px solid rgba(255,255,255,0.04);
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 5px;
 }
 
 .sessions-more-toggle:hover {
@@ -1621,6 +1621,9 @@ body { display: flex; flex-direction: column; }
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .jsonl-user .jsonl-role-label {
@@ -1665,6 +1668,15 @@ body { display: flex; flex-direction: column; }
 }
 
 .jsonl-tool-call,
+.jsonl-tool-results {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.jsonl-tool-results .jsonl-role-label {
+  color: #777;
+}
+
 .jsonl-tool-result {
   margin: 8px 0;
   border-radius: 6px;
