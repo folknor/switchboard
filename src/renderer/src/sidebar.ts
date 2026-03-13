@@ -987,8 +987,10 @@ export async function loadProjects(
         }
       }
     }
-  } catch {
-    // ignore
+  } catch (e: unknown) {
+    window.api.logWarn(
+      `[loadProjects] failed to restore terminals: ${(e as Error).message}`,
+    );
   }
 
   await pollActiveSessions();

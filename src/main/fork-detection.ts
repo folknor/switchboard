@@ -31,7 +31,11 @@ function readNewSessionSignals(filePath: string): {
       if (entry.type === "user" || entry.type === "assistant") break;
     }
     return { forkedFrom, planContent, slug, parentSessionId };
-  } catch {
+  } catch (e: unknown) {
+    log.debug(
+      `[readNewSessionSignals] failed for ${filePath}:`,
+      (e as Error).message,
+    );
     return {
       forkedFrom: null,
       planContent: false,
@@ -66,7 +70,11 @@ function readOldSessionTail(filePath: string): {
       if (last) slug = last[1];
     }
     return { hasExitPlanMode, slug };
-  } catch {
+  } catch (e: unknown) {
+    log.debug(
+      `[readOldSessionTail] failed for ${filePath}:`,
+      (e as Error).message,
+    );
     return { hasExitPlanMode: false, slug: null };
   }
 }
@@ -170,7 +178,12 @@ export function detectSessionTransitions(
             if (Math.abs(newMtime - oldMtime) < 30000) {
               matched = true;
             }
-          } catch {}
+          } catch (e: unknown) {
+            log.debug(
+              `[detectSessionTransitions] stat failed for plan-accept check:`,
+              (e as Error).message,
+            );
+          }
         }
       }
 

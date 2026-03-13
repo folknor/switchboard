@@ -63,9 +63,13 @@ function deriveProjectPath(folderPath: string, _folder: string): string | null {
             }
           }
         }
-      } catch {}
+      } catch {
+        // subdirectory read failure — non-fatal, skip
+      }
     }
-  } catch {}
+  } catch {
+    // folder read failure — non-fatal, skip
+  }
   // No cwd found — return null so callers can skip this folder
   return null;
 }
@@ -78,7 +82,9 @@ function readFolderFromFilesystem(folder: string): FolderResult | null {
   let mtimeMs = 0;
   try {
     mtimeMs = fs.statSync(folderPath).mtimeMs;
-  } catch {}
+  } catch {
+    // stat failure — use default 0
+  }
 
   try {
     const jsonlFiles = fs
@@ -128,7 +134,12 @@ function readFolderFromFilesystem(folder: string): FolderResult | null {
             textContent += `${text.slice(0, 500)}\n`;
           }
         }
-      } catch {}
+      } catch (e: unknown) {
+        parentPort?.postMessage({
+          type: "progress",
+          text: `Warning: failed to parse ${file}: ${(e as Error).message}`,
+        });
+      }
       if (!summary || messageCount < 1) continue;
       sessions.push({
         sessionId,
@@ -144,7 +155,12 @@ function readFolderFromFilesystem(folder: string): FolderResult | null {
         customTitle,
       });
     }
-  } catch {}
+  } catch (e: unknown) {
+    parentPort?.postMessage({
+      type: "progress",
+      text: `Warning: failed to read folder ${folder}: ${(e as Error).message}`,
+    });
+  }
 
   return { folder, projectPath, sessions, mtimeMs };
 }

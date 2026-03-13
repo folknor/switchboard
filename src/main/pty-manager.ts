@@ -57,9 +57,12 @@ export function warmupPty(
     setTimeout(() => {
       try {
         p.kill();
-      } catch {}
+      } catch (e: unknown) {
+        log.debug("[warmupPty] kill failed:", (e as Error).message);
+      }
     }, 5000);
-  } catch {
+  } catch (e: unknown) {
+    log.warn("[warmupPty] spawn failed:", (e as Error).message);
     sendStatus("");
   }
 }
@@ -174,7 +177,12 @@ export function registerPtyHandlers(
                 .readdirSync(claudeProjectDir)
                 .filter((f: string) => f.endsWith(".jsonl")),
             );
-          } catch {}
+          } catch (e: unknown) {
+            log.debug(
+              `[open-terminal] failed to snapshot jsonl files for session=${sessionId}:`,
+              (e as Error).message,
+            );
+          }
         }
 
         // Read slug from the session's jsonl file (for plan-accept detection)
@@ -190,7 +198,12 @@ export function registerPtyHandlers(
                 break;
               }
             }
-          } catch {}
+          } catch (e: unknown) {
+            log.debug(
+              `[open-terminal] failed to read slug for session=${sessionId}:`,
+              (e as Error).message,
+            );
+          }
         }
       }
 
@@ -224,7 +237,12 @@ export function registerPtyHandlers(
             if (!(ptyProcess as IPty & { _isDisposed?: boolean })._isDisposed) {
               try {
                 ptyProcess.write(`${claudeShim} clear\n`);
-              } catch {}
+              } catch (e: unknown) {
+                log.debug(
+                  "[open-terminal] failed to inject claude shim:",
+                  (e as Error).message,
+                );
+              }
             }
           }, 300);
         } else {
@@ -460,9 +478,19 @@ export function registerPtyHandlers(
               setTimeout(() => {
                 try {
                   session.pty.resize(cols, rows);
-                } catch {}
+                } catch (e: unknown) {
+                  log.debug(
+                    "[terminal-resize] nudge restore failed:",
+                    (e as Error).message,
+                  );
+                }
               }, 50);
-            } catch {}
+            } catch (e: unknown) {
+              log.debug(
+                "[terminal-resize] nudge failed:",
+                (e as Error).message,
+              );
+            }
           }, 50);
         }
       }

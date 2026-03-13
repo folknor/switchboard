@@ -37,6 +37,9 @@ interface Window {
     removeProject(projectPath: string): Promise<void>;
     openExternal(url: string): Promise<void>;
 
+    logWarn(msg: string): void;
+    logError(msg: string): void;
+
     sendInput(id: string, data: string): void;
     resizeTerminal(id: string, cols: number, rows: number): void;
     closeTerminal(id: string): void;

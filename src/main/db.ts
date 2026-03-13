@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
+import log from "electron-log";
 
 const DATA_DIR: string = path.join(os.homedir(), ".switchboard");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -20,10 +21,14 @@ if (!fs.existsSync(DB_PATH)) {
       fs.renameSync(oldPath, DB_PATH);
       try {
         fs.renameSync(`${oldPath}-wal`, `${DB_PATH}-wal`);
-      } catch {}
+      } catch {
+        // WAL file may not exist for this db — non-fatal
+      }
       try {
         fs.renameSync(`${oldPath}-shm`, `${DB_PATH}-shm`);
-      } catch {}
+      } catch {
+        // SHM file may not exist for this db — non-fatal
+      }
       break;
     }
   }
@@ -401,7 +406,8 @@ function searchByType(
     // This prevents FTS5 from splitting on punctuation (e.g. "spec.md" → "spec" + "md")
     const escaped = `"${query.replace(/"/g, '""')}"`;
     return stmts.searchQuery.all(type, escaped, limit);
-  } catch {
+  } catch (e: unknown) {
+    log.warn("[search] FTS query failed:", (e as Error).message);
     return [];
   }
 }
@@ -422,7 +428,11 @@ function getSetting(key: string): unknown {
   if (!row) return null;
   try {
     return JSON.parse(row.value);
-  } catch {
+  } catch (e: unknown) {
+    log.warn(
+      `[settings] JSON parse failed for key="${key}":`,
+      (e as Error).message,
+    );
     return row.value;
   }
 }

@@ -229,7 +229,10 @@ export function setCachedMemories(v: ProjectObj[]): void {
 export function getExpandedSlugs(): Set<string> {
   try {
     return new Set(JSON.parse(sessionStorage.getItem("expandedSlugs") || "[]"));
-  } catch {
+  } catch (e: unknown) {
+    window.api.logWarn(
+      `[getExpandedSlugs] failed to parse sessionStorage: ${(e as Error).message}`,
+    );
     return new Set();
   }
 }

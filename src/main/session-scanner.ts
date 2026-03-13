@@ -72,9 +72,19 @@ export function deriveProjectPath(
             }
           }
         }
-      } catch {}
+      } catch (subErr: unknown) {
+        log.debug(
+          `[deriveProjectPath] failed to read subdirectory in ${folderPath}:`,
+          (subErr as Error).message,
+        );
+      }
     }
-  } catch {}
+  } catch (e: unknown) {
+    log.debug(
+      `[deriveProjectPath] failed to read folder ${folderPath}:`,
+      (e as Error).message,
+    );
+  }
   // No cwd found — return null so callers can skip this folder
   return null;
 }
@@ -141,7 +151,11 @@ export function readSessionFile(
       slug,
       customTitle,
     };
-  } catch {
+  } catch (e: unknown) {
+    log.warn(
+      `[readSessionFile] failed to parse session=${sessionId}:`,
+      (e as Error).message,
+    );
     return null;
   }
 }
@@ -168,7 +182,12 @@ export function _readFolderFromFilesystem(folder: string): {
       );
       if (s) sessions.push(s);
     }
-  } catch {}
+  } catch (e: unknown) {
+    log.warn(
+      `[_readFolderFromFilesystem] failed to read folder=${folder}:`,
+      (e as Error).message,
+    );
+  }
 
   return { projectPath, sessions };
 }
@@ -187,7 +206,12 @@ export function refreshFolder(folder: string): void {
     let mtimeMs = 0;
     try {
       mtimeMs = fs.statSync(folderPath).mtimeMs;
-    } catch {}
+    } catch (e: unknown) {
+      log.debug(
+        `[refreshFolder] stat failed for folder=${folder}:`,
+        (e as Error).message,
+      );
+    }
     setFolderMeta(folder, null, mtimeMs);
     return;
   }
@@ -205,7 +229,11 @@ export function refreshFolder(folder: string): void {
     jsonlFiles = fs
       .readdirSync(folderPath)
       .filter((f: string) => f.endsWith(".jsonl"));
-  } catch {
+  } catch (e: unknown) {
+    log.warn(
+      `[refreshFolder] failed to list folder=${folder}:`,
+      (e as Error).message,
+    );
     return;
   }
 
@@ -221,7 +249,11 @@ export function refreshFolder(folder: string): void {
     let fileMtime: string;
     try {
       fileMtime = fs.statSync(filePath).mtime.toISOString();
-    } catch {
+    } catch (e: unknown) {
+      log.debug(
+        `[refreshFolder] stat failed for file=${file}:`,
+        (e as Error).message,
+      );
       continue;
     }
 
@@ -262,7 +294,12 @@ export function refreshFolder(folder: string): void {
   let mtimeMs = 0;
   try {
     mtimeMs = fs.statSync(folderPath).mtimeMs;
-  } catch {}
+  } catch (e: unknown) {
+    log.debug(
+      `[refreshFolder] stat failed for folder=${folder}:`,
+      (e as Error).message,
+    );
+  }
   setFolderMeta(folder, projectPath, mtimeMs);
 }
 
@@ -277,7 +314,9 @@ export function _populateCacheFromFilesystem(): void {
     for (const folder of folders) {
       refreshFolder(folder);
     }
-  } catch {}
+  } catch (e: unknown) {
+    log.error("[_populateCacheFromFilesystem] failed:", (e as Error).message);
+  }
 }
 
 /** Build projects response from cached data */
@@ -347,7 +386,12 @@ export function buildProjectsFromCache(
         }
       }
     }
-  } catch {}
+  } catch (e: unknown) {
+    log.debug(
+      "[buildProjectsFromCache] failed to list empty project dirs:",
+      (e as Error).message,
+    );
+  }
 
   const projects: Record<string, unknown>[] = [];
   for (const proj of folderMap.values()) {
@@ -394,7 +438,12 @@ export function backgroundRefresh(
       let currentMtime = 0;
       try {
         currentMtime = fs.statSync(folderPath).mtimeMs;
-      } catch {}
+      } catch (e: unknown) {
+        log.debug(
+          `[backgroundRefresh] stat failed for folder=${folder}:`,
+          (e as Error).message,
+        );
+      }
 
       const cached = metaMap.get(folder);
       if (!cached || cached.indexMtimeMs !== currentMtime) {
@@ -416,7 +465,9 @@ export function backgroundRefresh(
       setTimeout(() => sendStatus(""), 3000);
       notifyRendererProjectsChanged();
     }
-  } catch {}
+  } catch (e: unknown) {
+    log.error("[backgroundRefresh] failed:", (e as Error).message);
+  }
 }
 
 // --- Worker-based cache population (non-blocking) ---

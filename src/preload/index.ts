@@ -46,6 +46,10 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("remove-project", projectPath),
   openExternal: (url: string) => ipcRenderer.invoke("open-external", url),
 
+  // Logging (renderer → main process electron-log)
+  logWarn: (msg: string) => ipcRenderer.send("renderer-log", "warn", msg),
+  logError: (msg: string) => ipcRenderer.send("renderer-log", "error", msg),
+
   // Send (fire-and-forget)
   sendInput: (id: string, data: string) =>
     ipcRenderer.send("terminal-input", id, data),

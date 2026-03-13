@@ -247,7 +247,8 @@ searchInput.addEventListener("input", () => {
           cachedMemories.filter((m: ProjectObj) => matchIds.has(m.filePath)),
         );
       }
-    } catch {
+    } catch (e: unknown) {
+      window.api.logWarn(`[search] failed: ${(e as Error).message}`);
       // Fallback to showing all on error
       if (activeTab === "sessions") {
         doRenderAndRebind(showArchived ? cachedAllProjects : cachedProjects);

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { BrowserWindow } from "electron";
 import { dialog, shell as electronShell, ipcMain } from "electron";
+import log from "electron-log";
 import type { AppUpdater } from "electron-updater";
 import {
   CLAUDE_DIR,
@@ -195,7 +196,8 @@ export function registerIpcHandlers(
         }
 
         return projects;
-      } catch {
+      } catch (e: unknown) {
+        log.error("[get-projects] failed:", (e as Error).message);
         return [];
       }
     },
@@ -226,7 +228,12 @@ export function registerIpcHandlers(
               title,
               modified: stat.mtime.toISOString(),
             });
-          } catch {}
+          } catch (e: unknown) {
+            log.warn(
+              `[get-plans] failed to read plan file=${file}:`,
+              (e as Error).message,
+            );
+          }
         }
         plans.sort(
           (a, b) =>
@@ -245,10 +252,13 @@ export function registerIpcHandlers(
               body: fs.readFileSync(path.join(PLANS_DIR, p.filename), "utf8"),
             })),
           );
-        } catch {}
+        } catch (e: unknown) {
+          log.warn("[get-plans] FTS indexing failed:", (e as Error).message);
+        }
 
         return plans;
-      } catch {
+      } catch (e: unknown) {
+        log.error("[get-plans] failed:", (e as Error).message);
         return [];
       }
     },
@@ -265,7 +275,11 @@ export function registerIpcHandlers(
         const filePath = path.join(PLANS_DIR, path.basename(filename));
         const content = fs.readFileSync(filePath, "utf8");
         return { content, filePath };
-      } catch {
+      } catch (e: unknown) {
+        log.warn(
+          `[read-plan] failed for file=${filename}:`,
+          (e as Error).message,
+        );
         return { content: "", filePath: "" };
       }
     },
@@ -298,7 +312,8 @@ export function registerIpcHandlers(
       if (!fs.existsSync(STATS_CACHE_PATH)) return null;
       const raw = fs.readFileSync(STATS_CACHE_PATH, "utf8");
       return JSON.parse(raw);
-    } catch {
+    } catch (e: unknown) {
+      log.warn("[get-stats] failed:", (e as Error).message);
       return null;
     }
   });
@@ -381,7 +396,12 @@ export function registerIpcHandlers(
             }
           }
         }
-      } catch {}
+      } catch (e: unknown) {
+        log.error(
+          "[get-memories] failed to enumerate memories:",
+          (e as Error).message,
+        );
+      }
 
       // Index memories for FTS
       try {
@@ -395,7 +415,9 @@ export function registerIpcHandlers(
             body: fs.readFileSync(m.filePath, "utf8"),
           })),
         );
-      } catch {}
+      } catch (e: unknown) {
+        log.warn("[get-memories] FTS indexing failed:", (e as Error).message);
+      }
 
       return memories;
     },
@@ -412,7 +434,11 @@ export function registerIpcHandlers(
           return "";
         }
         return fs.readFileSync(resolved, "utf8");
-      } catch {
+      } catch (e: unknown) {
+        log.warn(
+          `[read-memory] failed for path=${filePath}:`,
+          (e as Error).message,
+        );
         return "";
       }
     },
@@ -445,7 +471,12 @@ export function registerIpcHandlers(
           if (!line.trim()) continue;
           try {
             entries.push(JSON.parse(line));
-          } catch {}
+          } catch (e: unknown) {
+            log.warn(
+              `[read-session-jsonl] malformed line in session=${sessionId}:`,
+              (e as Error).message,
+            );
+          }
         }
         return { entries };
       } catch (err: unknown) {

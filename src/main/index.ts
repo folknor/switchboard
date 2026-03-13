@@ -5,6 +5,7 @@ import {
   app,
   BrowserWindow,
   shell as electronShell,
+  ipcMain,
   Menu,
   screen,
 } from "electron";
@@ -304,9 +305,22 @@ function startProjectsWatcher(): void {
       },
     );
 
-    projectsWatcher.on("error", (_err: Error) => {});
-  } catch {}
+    projectsWatcher.on("error", (err: Error) => {
+      log.error("[projects-watcher] error:", err.message);
+    });
+  } catch (e: unknown) {
+    log.error("[projects-watcher] failed to start:", (e as Error).message);
+  }
 }
+
+// --- Renderer logging bridge ---
+ipcMain.on(
+  "renderer-log",
+  (_event: Electron.IpcMainEvent, level: string, msg: string) => {
+    if (level === "error") log.error("[renderer]", msg);
+    else log.warn("[renderer]", msg);
+  },
+);
 
 // --- Register all IPC handlers ---
 registerPtyHandlers(getMainWindow);
@@ -370,7 +384,9 @@ app.on("before-quit", () => {
     if (!session.exited) {
       try {
         session.pty.kill();
-      } catch {}
+      } catch (e: unknown) {
+        log.debug("[before-quit] failed to kill PTY:", (e as Error).message);
+      }
     }
   }
 });

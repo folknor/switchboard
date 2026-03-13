@@ -220,7 +220,10 @@ export function makeCollapsible(
   } else {
     try {
       body.textContent = JSON.stringify(bodyContent, null, 2);
-    } catch {
+    } catch (e: unknown) {
+      window.api.logWarn(
+        `[viewers] JSON stringify failed: ${(e as Error).message}`,
+      );
       body.textContent = String(bodyContent);
     }
   }

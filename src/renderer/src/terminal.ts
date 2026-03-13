@@ -189,8 +189,8 @@ export async function pollActiveSessions(): Promise<void> {
     setActivePtyIds(new Set(ids));
     updateRunningIndicators();
     updateTerminalHeader();
-  } catch {
-    // ignore
+  } catch (e: unknown) {
+    window.api.logWarn(`[pollActiveSessions] failed: ${(e as Error).message}`);
   }
 }
 
