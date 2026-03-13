@@ -6,8 +6,7 @@
   "author": "Doctly <support@doctly.ai>",
   "main": "./out/main/index.js",
   "scripts": {
-    "postinstall": "electron-rebuild --force --build-from-source",
-    "rebuild": "electron-rebuild --force --build-from-source",
+    "postinstall": "electron-builder install-app-deps",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
@@ -21,36 +20,38 @@
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.0.0",
     "@codemirror/language-data": "^6.5.2",
     "@codemirror/search": "^6.6.0",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.40.0",
     "@ddietr/codemirror-themes": "^1.5.2",
-    "@xterm/addon-fit": "^0.10.0",
-    "@xterm/addon-web-links": "^0.10.0",
-    "@xterm/xterm": "^5.5.0",
-    "better-sqlite3": "^11.10.0",
+    "@lezer/highlight": "^1.0.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "better-sqlite3": "^12.6.2",
     "codemirror": "^6.0.2",
     "electron-log": "^5.4.3",
     "electron-updater": "^6.8.3",
-    "express": "^4.22.1",
+    "express": "^5.2.1",
     "morphdom": "^2.7.8",
     "node-pty": "^1.1.0",
     "ws": "^8.19.0"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.3",
     "@napi-rs/canvas": "^0.1.96",
-    "electron": "^33.4.11",
-    "electron-builder": "^25.1.8",
-    "electron-vite": "^3.0.0",
+    "electron": "^40.8.2",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
     "png2icons": "^2.0.1",
-    "vite": "^6.0.0"
+    "vite": "^7.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "better-sqlite3",
       "electron",
+      "electron-winstaller",
       "esbuild",
       "node-pty"
     ]
