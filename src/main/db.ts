@@ -159,7 +159,7 @@ const stmts = {
     "SELECT * FROM session_meta WHERE sessionId = ?",
   ),
   getAll: db.prepare<[], SessionMetaRow>("SELECT * FROM session_meta"),
-  upsertName: db.prepare<[string, string]>(`
+  upsertName: db.prepare<[string, string | null]>(`
     INSERT INTO session_meta (sessionId, name) VALUES (?, ?)
     ON CONFLICT(sessionId) DO UPDATE SET name = excluded.name
   `),
@@ -277,7 +277,7 @@ function getAllMeta(): Map<string, SessionMetaRow> {
   return map;
 }
 
-function setName(sessionId: string, name: string): void {
+function setName(sessionId: string, name: string | null): void {
   stmts.upsertName.run(sessionId, name);
 }
 

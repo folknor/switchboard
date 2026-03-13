@@ -518,9 +518,8 @@ export function registerIpcHandlers(
       sessionId: string,
       archived: boolean,
     ): { archived: number } => {
-      const val = archived ? 1 : 0;
-      setArchived(sessionId, val);
-      return { archived: val };
+      setArchived(sessionId, archived);
+      return { archived: archived ? 1 : 0 };
     },
   );
 
