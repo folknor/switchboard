@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld("api", {
     id: string,
     projectPath: string,
     isNew: boolean,
-    sessionOptions?: any,
+    sessionOptions?: Record<string, unknown>,
   ) =>
     ipcRenderer.invoke("open-terminal", id, projectPath, isNew, sessionOptions),
   search: (type: string, query: string) =>
@@ -33,7 +33,7 @@ contextBridge.exposeInMainWorld("api", {
 
   // Settings
   getSetting: (key: string) => ipcRenderer.invoke("get-setting", key),
-  setSetting: (key: string, value: any) =>
+  setSetting: (key: string, value: unknown) =>
     ipcRenderer.invoke("set-setting", key, value),
   deleteSetting: (key: string) => ipcRenderer.invoke("delete-setting", key),
   getEffectiveSettings: (projectPath: string) =>
@@ -98,7 +98,7 @@ contextBridge.exposeInMainWorld("api", {
       callback(text, type),
     );
   },
-  onTerminalPassthrough: (callback: (data: any) => void) => {
+  onTerminalPassthrough: (callback: (data: unknown) => void) => {
     ipcRenderer.on("terminal-passthrough", (_event, data) => callback(data));
   },
 
@@ -106,7 +106,7 @@ contextBridge.exposeInMainWorld("api", {
   updaterCheck: () => ipcRenderer.invoke("updater-check"),
   updaterDownload: () => ipcRenderer.invoke("updater-download"),
   updaterInstall: () => ipcRenderer.invoke("updater-install"),
-  onUpdaterEvent: (callback: (type: string, data: any) => void) => {
+  onUpdaterEvent: (callback: (type: string, data: unknown) => void) => {
     ipcRenderer.on("updater-event", (_event, type, data) =>
       callback(type, data),
     );

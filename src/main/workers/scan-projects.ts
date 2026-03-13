@@ -2,9 +2,30 @@ import fs from "node:fs";
 import path from "node:path";
 import { parentPort, workerData } from "node:worker_threads";
 
-const PROJECTS_DIR = workerData.projectsDir;
+const PROJECTS_DIR: string = workerData.projectsDir;
 
-function deriveProjectPath(folderPath, _folder) {
+interface SessionInfo {
+  sessionId: string;
+  folder: string;
+  projectPath: string;
+  summary: string;
+  firstPrompt: string;
+  created: string;
+  modified: string;
+  messageCount: number;
+  textContent: string;
+  slug: string | null;
+  customTitle: string | null;
+}
+
+interface FolderResult {
+  folder: string;
+  projectPath: string;
+  sessions: SessionInfo[];
+  mtimeMs: number;
+}
+
+function deriveProjectPath(folderPath: string, _folder: string): string | null {
   try {
     const entries = fs.readdirSync(folderPath, { withFileTypes: true });
     for (const e of entries) {
@@ -24,7 +45,7 @@ function deriveProjectPath(folderPath, _folder) {
       try {
         const subFiles = fs.readdirSync(subDir, { withFileTypes: true });
         for (const sf of subFiles) {
-          let jsonlPath;
+          let jsonlPath: string | undefined;
           if (sf.isFile() && sf.name.endsWith(".jsonl")) {
             jsonlPath = path.join(subDir, sf.name);
           } else if (sf.isDirectory() && sf.name === "subagents") {
@@ -49,11 +70,11 @@ function deriveProjectPath(folderPath, _folder) {
   return null;
 }
 
-function readFolderFromFilesystem(folder) {
+function readFolderFromFilesystem(folder: string): FolderResult | null {
   const folderPath = path.join(PROJECTS_DIR, folder);
   const projectPath = deriveProjectPath(folderPath, folder);
   if (!projectPath) return null;
-  const sessions = [];
+  const sessions: SessionInfo[] = [];
   let mtimeMs = 0;
   try {
     mtimeMs = fs.statSync(folderPath).mtimeMs;
@@ -70,8 +91,8 @@ function readFolderFromFilesystem(folder) {
       let summary = "";
       let messageCount = 0;
       let textContent = "";
-      let slug = null;
-      let customTitle = null;
+      let slug: string | null = null;
+      let customTitle: string | null = null;
       try {
         const content = fs.readFileSync(filePath, "utf8");
         const lines = content.split("\n").filter(Boolean);
@@ -135,7 +156,7 @@ try {
     .filter((d) => d.isDirectory() && d.name !== ".git")
     .map((d) => d.name);
 
-  const results = [];
+  const results: FolderResult[] = [];
   for (let i = 0; i < folders.length; i++) {
     if (i % 5 === 0 || i === folders.length - 1) {
       parentPort.postMessage({

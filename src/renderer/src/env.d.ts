@@ -2,39 +2,39 @@
 
 interface Window {
   api: {
-    getPlans(): Promise<any[]>;
+    getPlans(): Promise<Record<string, unknown>[]>;
     readPlan(filename: string): Promise<{ content: string; filePath: string }>;
     savePlan(
       filePath: string,
       content: string,
     ): Promise<{ ok: boolean; error?: string }>;
-    getStats(): Promise<any>;
-    getMemories(): Promise<any[]>;
+    getStats(): Promise<Record<string, unknown>>;
+    getMemories(): Promise<Record<string, unknown>[]>;
     readMemory(filePath: string): Promise<string>;
-    getProjects(showArchived: boolean): Promise<any[]>;
+    getProjects(showArchived: boolean): Promise<Record<string, unknown>[]>;
     getActiveSessions(): Promise<string[]>;
     getActiveTerminals(): Promise<{ sessionId: string; projectPath: string }[]>;
-    stopSession(id: string): Promise<any>;
+    stopSession(id: string): Promise<void>;
     toggleStar(id: string): Promise<{ starred: number }>;
-    renameSession(id: string, name: string): Promise<any>;
-    archiveSession(id: string, archived: boolean): Promise<any>;
+    renameSession(id: string, name: string): Promise<void>;
+    archiveSession(id: string, archived: boolean): Promise<void>;
     openTerminal(
       id: string,
       projectPath: string,
       isNew: boolean,
-      sessionOptions?: any,
-    ): Promise<any>;
-    search(type: string, query: string): Promise<any[]>;
-    readSessionJsonl(sessionId: string): Promise<any>;
+      sessionOptions?: Record<string, unknown>,
+    ): Promise<void>;
+    search(type: string, query: string): Promise<Record<string, unknown>[]>;
+    readSessionJsonl(sessionId: string): Promise<Record<string, unknown>>;
 
-    getSetting(key: string): Promise<any>;
-    setSetting(key: string, value: any): Promise<any>;
-    deleteSetting(key: string): Promise<any>;
-    getEffectiveSettings(projectPath: string): Promise<any>;
+    getSetting(key: string): Promise<unknown>;
+    setSetting(key: string, value: unknown): Promise<void>;
+    deleteSetting(key: string): Promise<void>;
+    getEffectiveSettings(projectPath: string): Promise<Record<string, unknown>>;
 
     browseFolder(): Promise<string | null>;
-    addProject(projectPath: string): Promise<any>;
-    removeProject(projectPath: string): Promise<any>;
+    addProject(projectPath: string): Promise<void>;
+    removeProject(projectPath: string): Promise<void>;
     openExternal(url: string): Promise<void>;
 
     sendInput(id: string, data: string): void;
@@ -55,11 +55,11 @@ interface Window {
     onSessionForked(callback: (oldId: string, newId: string) => void): void;
     onProjectsChanged(callback: () => void): void;
     onStatusUpdate(callback: (text: string, type: string) => void): void;
-    onTerminalPassthrough(callback: (data: any) => void): void;
+    onTerminalPassthrough(callback: (data: unknown) => void): void;
 
-    updaterCheck(): Promise<any>;
-    updaterDownload(): Promise<any>;
-    updaterInstall(): Promise<any>;
-    onUpdaterEvent(callback: (type: string, data: any) => void): void;
+    updaterCheck(): Promise<unknown>;
+    updaterDownload(): Promise<unknown>;
+    updaterInstall(): Promise<unknown>;
+    onUpdaterEvent(callback: (type: string, data: unknown) => void): void;
   };
 }

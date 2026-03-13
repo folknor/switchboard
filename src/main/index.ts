@@ -8,13 +8,15 @@ import {
   app,
   BrowserWindow,
   dialog,
+  shell as electronShell,
   ipcMain,
   Menu,
   screen,
-  shell,
 } from "electron";
 import log from "electron-log";
+import type { AppUpdater } from "electron-updater";
 import { autoUpdater as _autoUpdater } from "electron-updater";
+import type { IPty } from "node-pty";
 import pty from "node-pty";
 import {
   deleteCachedFolder,
@@ -53,7 +55,7 @@ process.on("unhandledRejection", (reason) => {
 
 // Clean env for child processes — strip Electron internals that cause nested
 // Electron apps (or node-pty inside them) to malfunction.
-const cleanPtyEnv = Object.fromEntries(
+const cleanPtyEnv: Record<string, string | undefined> = Object.fromEntries(
   Object.entries(process.env).filter(
     ([k]) =>
       !(k.startsWith("ELECTRON_") || k.startsWith("GOOGLE_API_KEY")) &&
@@ -63,7 +65,7 @@ const cleanPtyEnv = Object.fromEntries(
 );
 
 // --- Auto-updater (only in packaged builds) ---
-let autoUpdater = null;
+let autoUpdater: AppUpdater | null = null;
 if (app.isPackaged || process.env.FORCE_UPDATER) {
   autoUpdater = _autoUpdater;
   autoUpdater.logger = log;
@@ -71,7 +73,7 @@ if (app.isPackaged || process.env.FORCE_UPDATER) {
   autoUpdater.autoInstallOnAppQuit = true;
   if (!app.isPackaged) autoUpdater.forceDevUpdateConfig = true;
 
-  function sendUpdaterEvent(type, data) {
+  function sendUpdaterEvent(type: string, data?: unknown): void {
     log.info(`[updater] ${type}`, data || "");
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("updater-event", type, data);
@@ -100,22 +102,40 @@ if (app.isPackaged || process.env.FORCE_UPDATER) {
   });
 }
 
-const PROJECTS_DIR = path.join(os.homedir(), ".claude", "projects");
-const PLANS_DIR = path.join(os.homedir(), ".claude", "plans");
-const CLAUDE_DIR = path.join(os.homedir(), ".claude");
-const STATS_CACHE_PATH = path.join(CLAUDE_DIR, "stats-cache.json");
-const MAX_BUFFER_SIZE = 256 * 1024;
+const PROJECTS_DIR: string = path.join(os.homedir(), ".claude", "projects");
+const PLANS_DIR: string = path.join(os.homedir(), ".claude", "plans");
+const CLAUDE_DIR: string = path.join(os.homedir(), ".claude");
+const STATS_CACHE_PATH: string = path.join(CLAUDE_DIR, "stats-cache.json");
+const MAX_BUFFER_SIZE: number = 256 * 1024;
+
+interface PtySession {
+  pty: IPty;
+  rendererAttached: boolean;
+  exited: boolean;
+  outputBuffer: string[];
+  outputBufferSize: number;
+  altScreen: boolean;
+  projectPath: string;
+  firstResize: boolean;
+  projectFolder: string | null;
+  knownJsonlFiles: Set<string>;
+  sessionSlug: string | null;
+  isPlainTerminal: boolean;
+  forkFrom: string | null;
+  realSessionId?: string;
+  _suppressBuffer?: boolean;
+}
 
 // Active PTY sessions
-const activeSessions = new Map();
-let mainWindow = null;
+const activeSessions: Map<string, PtySession> = new Map();
+let mainWindow: BrowserWindow | null = null;
 
-function createWindow() {
+function createWindow(): void {
   // Restore saved window bounds
   const savedBounds = getSetting("global")?.windowBounds;
   const bounds = { width: 1400, height: 900 };
 
-  let restorePosition = null;
+  let restorePosition: { x: number; y: number } | null = null;
   if (savedBounds?.width && savedBounds.height) {
     bounds.width = savedBounds.width;
     bounds.height = savedBounds.height;
@@ -168,13 +188,15 @@ function createWindow() {
 
   // Open external links in the system browser instead of a child BrowserWindow
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
+    if (/^https?:\/\//i.test(url))
+      electronShell.openExternal(url).catch(() => {});
     return { action: "deny" };
   });
   mainWindow.webContents.on("will-navigate", (event, url) => {
     if (url !== mainWindow.webContents.getURL()) {
       event.preventDefault();
-      if (/^https?:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
+      if (/^https?:\/\//i.test(url))
+        electronShell.openExternal(url).catch(() => {});
     }
   });
   // Override window.open so xterm WebLinksAddon's default handler (which does
@@ -209,8 +231,8 @@ function createWindow() {
   });
 
   // Save window bounds on move/resize (debounced)
-  let boundsTimer = null;
-  const saveBounds = () => {
+  let boundsTimer: ReturnType<typeof setTimeout> | null = null;
+  const saveBounds = (): void => {
     if (boundsTimer) clearTimeout(boundsTimer);
     boundsTimer = setTimeout(() => {
       if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isMinimized())
@@ -260,7 +282,7 @@ function createWindow() {
   });
 }
 
-function buildMenu() {
+function buildMenu(): void {
   const template = [
     {
       label: app.name,
@@ -305,7 +327,7 @@ function buildMenu() {
 // --- Session cache helpers ---
 
 /** Derive the real project path by reading cwd from the first JSONL entry in the folder */
-function deriveProjectPath(folderPath, _folder) {
+function deriveProjectPath(folderPath: string, _folder: string): string | null {
   try {
     const entries = fs.readdirSync(folderPath, { withFileTypes: true });
     // Check direct .jsonl files first
@@ -328,7 +350,7 @@ function deriveProjectPath(folderPath, _folder) {
         // Look for .jsonl directly in session dir or in subagents/
         const subFiles = fs.readdirSync(subDir, { withFileTypes: true });
         for (const sf of subFiles) {
-          let jsonlPath;
+          let jsonlPath: string | undefined;
           if (sf.isFile() && sf.name.endsWith(".jsonl")) {
             jsonlPath = path.join(subDir, sf.name);
           } else if (sf.isDirectory() && sf.name === "subagents") {
@@ -354,7 +376,11 @@ function deriveProjectPath(folderPath, _folder) {
 }
 
 /** Parse a single .jsonl file into a session object (or null if invalid) */
-function readSessionFile(filePath, folder, projectPath) {
+function readSessionFile(
+  filePath: string,
+  folder: string,
+  projectPath: string,
+): Record<string, unknown> | null {
   const sessionId = path.basename(filePath, ".jsonl");
   try {
     const stat = fs.statSync(filePath);
@@ -363,8 +389,8 @@ function readSessionFile(filePath, folder, projectPath) {
     let summary = "";
     let messageCount = 0;
     let textContent = "";
-    let slug = null;
-    let customTitle = null;
+    let slug: string | null = null;
+    let customTitle: string | null = null;
     for (const line of lines) {
       const entry = JSON.parse(line);
       if (entry.slug && !slug) slug = entry.slug;
@@ -417,11 +443,14 @@ function readSessionFile(filePath, folder, projectPath) {
 }
 
 /** Read one folder from filesystem by scanning .jsonl files directly */
-function _readFolderFromFilesystem(folder) {
+function _readFolderFromFilesystem(folder: string): {
+  projectPath: string | null;
+  sessions: Record<string, unknown>[];
+} {
   const folderPath = path.join(PROJECTS_DIR, folder);
   const projectPath = deriveProjectPath(folderPath, folder);
   if (!projectPath) return { projectPath: null, sessions: [] };
-  const sessions = [];
+  const sessions: Record<string, unknown>[] = [];
 
   try {
     const jsonlFiles = fs
@@ -441,7 +470,7 @@ function _readFolderFromFilesystem(folder) {
 }
 
 /** Refresh a single folder incrementally: only re-read changed/new .jsonl files */
-function refreshFolder(folder) {
+function refreshFolder(folder: string): void {
   const folderPath = path.join(PROJECTS_DIR, folder);
   if (!fs.existsSync(folderPath)) {
     deleteCachedFolder(folder);
@@ -467,7 +496,7 @@ function refreshFolder(folder) {
   }
 
   // Scan current .jsonl files
-  let jsonlFiles;
+  let jsonlFiles: string[];
   try {
     jsonlFiles = fs.readdirSync(folderPath).filter((f) => f.endsWith(".jsonl"));
   } catch {
@@ -483,7 +512,7 @@ function refreshFolder(folder) {
     currentIds.add(sessionId);
 
     // Check if file mtime changed
-    let fileMtime;
+    let fileMtime: string;
     try {
       fileMtime = fs.statSync(filePath).mtime.toISOString();
     } catch {
@@ -531,7 +560,7 @@ function refreshFolder(folder) {
 }
 
 /** Populate entire cache from filesystem (cold start) */
-function _populateCacheFromFilesystem() {
+function _populateCacheFromFilesystem(): void {
   try {
     const folders = fs
       .readdirSync(PROJECTS_DIR, { withFileTypes: true })
@@ -545,7 +574,9 @@ function _populateCacheFromFilesystem() {
 }
 
 /** Build projects response from cached data */
-function buildProjectsFromCache(showArchived) {
+function buildProjectsFromCache(
+  showArchived: boolean,
+): Record<string, unknown>[] {
   const metaMap = getAllMeta();
   const cachedRows = getAllCached();
   const global = getSetting("global") || {};
@@ -598,9 +629,12 @@ function buildProjectsFromCache(showArchived) {
     }
   } catch {}
 
-  const projects = [];
+  const projects: Record<string, unknown>[] = [];
   for (const proj of folderMap.values()) {
-    proj.sessions.sort((a, b) => new Date(b.modified) - new Date(a.modified));
+    proj.sessions.sort(
+      (a: Record<string, string>, b: Record<string, string>) =>
+        new Date(b.modified).getTime() - new Date(a.modified).getTime(),
+    );
     projects.push(proj);
   }
 
@@ -610,14 +644,14 @@ function buildProjectsFromCache(showArchived) {
     if (b.sessions.length === 0 && a.sessions.length > 0) return -1;
     const aDate = a.sessions[0]?.modified || "";
     const bDate = b.sessions[0]?.modified || "";
-    return new Date(bDate) - new Date(aDate);
+    return new Date(bDate).getTime() - new Date(aDate).getTime();
   });
 
   return projects;
 }
 
 /** Background refresh: check mtimes, refresh stale folders */
-function backgroundRefresh() {
+function backgroundRefresh(): void {
   try {
     const folders = fs
       .readdirSync(PROJECTS_DIR, { withFileTypes: true })
@@ -659,13 +693,13 @@ function backgroundRefresh() {
   } catch {}
 }
 
-function notifyRendererProjectsChanged() {
+function notifyRendererProjectsChanged(): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("projects-changed");
   }
 }
 
-function sendStatus(text, type) {
+function sendStatus(text: string, type?: string): void {
   if (text) log.info(`[status] (${type || "info"}) ${text}`);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("status-update", text, type || "info");
@@ -675,7 +709,7 @@ function sendStatus(text, type) {
 // --- Worker-based cache population (non-blocking) ---
 let populatingCache = false;
 
-function populateCacheViaWorker() {
+function populateCacheViaWorker(): void {
   if (populatingCache) return;
   populatingCache = true;
   sendStatus("Scanning projects\u2026", "active");
@@ -825,7 +859,7 @@ ipcMain.handle("remove-project", (_event, projectPath) => {
 // --- IPC: get-projects ---
 ipcMain.handle("open-external", (_event, url) => {
   log.info("[open-external IPC]", url);
-  if (/^https?:\/\//i.test(url)) return shell.openExternal(url);
+  if (/^https?:\/\//i.test(url)) return electronShell.openExternal(url);
 });
 
 ipcMain.handle("get-projects", (_event, showArchived) => {
@@ -855,7 +889,7 @@ ipcMain.handle("get-plans", () => {
   try {
     if (!fs.existsSync(PLANS_DIR)) return [];
     const files = fs.readdirSync(PLANS_DIR).filter((f) => f.endsWith(".md"));
-    const plans = [];
+    const plans: { filename: string; title: string; modified: string }[] = [];
     for (const file of files) {
       const filePath = path.join(PLANS_DIR, file);
       try {
@@ -872,7 +906,9 @@ ipcMain.handle("get-plans", () => {
         });
       } catch {}
     }
-    plans.sort((a, b) => new Date(b.modified) - new Date(a.modified));
+    plans.sort(
+      (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime(),
+    );
 
     // Index plans for FTS
     try {
@@ -931,7 +967,7 @@ ipcMain.handle("get-stats", () => {
 });
 
 // --- IPC: get-memories ---
-function folderToShortPath(folder) {
+function folderToShortPath(folder: string): string {
   // Convert "-Users-home-dev-MyClaude" → "dev/MyClaude"
   const parts = folder.replace(/^-/, "").split("-");
   // Take last 2 meaningful segments
@@ -940,7 +976,13 @@ function folderToShortPath(folder) {
 }
 
 ipcMain.handle("get-memories", () => {
-  const memories = [];
+  const memories: {
+    type: string;
+    label: string;
+    filename: string;
+    filePath: string;
+    modified: string;
+  }[] = [];
   try {
     // Global CLAUDE.md
     const globalClaude = path.join(CLAUDE_DIR, "CLAUDE.md");
@@ -1083,7 +1125,7 @@ ipcMain.handle("get-effective-settings", (_event, projectPath) => {
 
 // --- IPC: get-active-sessions ---
 ipcMain.handle("get-active-sessions", () => {
-  const active = [];
+  const active: string[] = [];
   for (const [sessionId, session] of activeSessions) {
     if (!session.exited) active.push(sessionId);
   }
@@ -1092,7 +1134,7 @@ ipcMain.handle("get-active-sessions", () => {
 
 // --- IPC: get-active-terminals --- (plain terminal sessions for renderer restore)
 ipcMain.handle("get-active-terminals", () => {
-  const terminals = [];
+  const terminals: { sessionId: string; projectPath: string }[] = [];
   for (const [sessionId, session] of activeSessions) {
     if (!session.exited && session.isPlainTerminal) {
       terminals.push({ sessionId, projectPath: session.projectPath });
@@ -1128,7 +1170,7 @@ ipcMain.handle("read-session-jsonl", (_event, sessionId) => {
   const jsonlPath = path.join(PROJECTS_DIR, folder, `${sessionId}.jsonl`);
   try {
     const content = fs.readFileSync(jsonlPath, "utf-8");
-    const entries = [];
+    const entries: unknown[] = [];
     for (const line of content.split("\n")) {
       if (!line.trim()) continue;
       try {
@@ -1150,6 +1192,7 @@ ipcMain.handle("archive-session", (_event, sessionId, archived) => {
 // --- IPC: open-terminal ---
 ipcMain.handle(
   "open-terminal",
+  // biome-ignore lint/complexity/useMaxParams: IPC handler receives individual args from renderer
   (_event, sessionId, projectPath, isNew, sessionOptions) => {
     if (!mainWindow) return { ok: false, error: "no window" };
 
@@ -1189,9 +1232,9 @@ ipcMain.handle(
     const shell = process.env.SHELL || "/bin/zsh";
     const isPlainTerminal = sessionOptions?.type === "terminal";
 
-    let knownJsonlFiles = new Set();
-    let sessionSlug = null;
-    let projectFolder = null;
+    let knownJsonlFiles: Set<string> = new Set();
+    let sessionSlug: string | null = null;
+    let projectFolder: string | null = null;
 
     if (!isPlainTerminal) {
       // Snapshot existing .jsonl files before spawning (for new session + fork/plan detection)
@@ -1224,7 +1267,7 @@ ipcMain.handle(
       }
     }
 
-    let ptyProcess;
+    let ptyProcess: IPty;
     try {
       if (isPlainTerminal) {
         // Plain terminal: interactive login shell, no claude command
@@ -1259,7 +1302,7 @@ ipcMain.handle(
         }, 300);
       } else {
         // Build claude command with session options
-        let claudeCmd;
+        let claudeCmd: string;
         if (sessionOptions?.forkFrom) {
           claudeCmd = `claude --resume "${sessionOptions.forkFrom}" --fork-session`;
         } else if (isNew) {
@@ -1343,6 +1386,7 @@ ipcMain.handle(
       // Log all OSC sequences (title changes, bells, etc.)
       if (data.includes("\x1b]")) {
         const oscMatches = data.matchAll(
+          // biome-ignore lint/suspicious/noControlCharactersInRegex: terminal escape sequence parsing
           /\x1b\](\d+);([^\x07\x1b]*)(?:\x07|\x1b\\)/g,
         );
         for (const m of oscMatches) {
@@ -1355,6 +1399,7 @@ ipcMain.handle(
             );
         }
         // Parse iTerm2 OSC 9 notification (terminated by BEL \x07 or ST \x1b\\)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: terminal escape sequence parsing
         const notifMatch = data.match(/\x1b\]9;([^\x07\x1b]*)(?:\x07|\x1b\\)/);
         if (notifMatch && !notifMatch[1].startsWith("4;")) {
           const message = notifMatch[1];
@@ -1370,6 +1415,7 @@ ipcMain.handle(
 
         // Parse iTerm2 OSC 9;4 progress sequences
         const progressMatch = data.match(
+          // biome-ignore lint/suspicious/noControlCharactersInRegex: terminal escape sequence parsing
           /\x1b\]9;4;(\d)(?:;(\d+))?(?:\x07|\x1b\\)/,
         );
         if (progressMatch) {
@@ -1499,14 +1545,19 @@ ipcMain.on("close-terminal", (_event, sessionId) => {
 // --- Fork / plan-accept detection ---
 
 /** Read first few lines of a new .jsonl to extract signals */
-function readNewSessionSignals(filePath) {
+function readNewSessionSignals(filePath: string): {
+  forkedFrom: string | null;
+  planContent: boolean;
+  slug: string | null;
+  parentSessionId: string | null;
+} {
   try {
     const head = fs.readFileSync(filePath, "utf8").slice(0, 8000);
     const lines = head.split("\n").filter(Boolean);
-    let forkedFrom = null;
-    let planContent = false;
-    let slug = null;
-    let parentSessionId = null;
+    let forkedFrom: string | null = null;
+    let planContent: boolean = false;
+    let slug: string | null = null;
+    let parentSessionId: string | null = null;
     for (const line of lines) {
       const entry = JSON.parse(line);
       if (entry.forkedFrom) forkedFrom = entry.forkedFrom.sessionId;
@@ -1530,7 +1581,10 @@ function readNewSessionSignals(filePath) {
 }
 
 /** Read tail of old session file for ExitPlanMode and slug */
-function readOldSessionTail(filePath) {
+function readOldSessionTail(filePath: string): {
+  hasExitPlanMode: boolean;
+  slug: string | null;
+} {
   try {
     const stat = fs.statSync(filePath);
     const size = stat.size;
@@ -1542,7 +1596,7 @@ function readOldSessionTail(filePath) {
     const tail = buf.toString("utf8");
     const hasExitPlanMode = tail.includes("ExitPlanMode");
     // Extract slug from tail (last occurrence)
-    let slug = null;
+    let slug: string | null = null;
     const slugMatches = tail.match(/"slug"\s*:\s*"([^"]+)"/g);
     if (slugMatches) {
       const last = slugMatches[slugMatches.length - 1].match(
@@ -1557,9 +1611,9 @@ function readOldSessionTail(filePath) {
 }
 
 /** Detect fork or plan-accept transitions for active PTY sessions in a folder */
-function detectSessionTransitions(folder) {
+function detectSessionTransitions(folder: string): void {
   const folderPath = path.join(PROJECTS_DIR, folder);
-  let currentFiles;
+  let currentFiles: string[];
   try {
     currentFiles = fs
       .readdirSync(folderPath)
@@ -1681,15 +1735,15 @@ function detectSessionTransitions(folder) {
 }
 
 // --- fs.watch on projects directory ---
-let projectsWatcher = null;
+let projectsWatcher: fs.FSWatcher | null = null;
 
-function startProjectsWatcher() {
+function startProjectsWatcher(): void {
   if (!fs.existsSync(PROJECTS_DIR)) return;
 
-  const pendingFolders = new Set();
-  let debounceTimer = null;
+  const pendingFolders: Set<string> = new Set();
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function flushChanges() {
+  function flushChanges(): void {
     debounceTimer = null;
     const folders = new Set(pendingFolders);
     pendingFolders.clear();
@@ -1757,11 +1811,11 @@ ipcMain.handle("updater-install", () => {
 });
 
 // --- PTY warmup (preload native module + shell profile + claude TUI) ---
-function warmupPty() {
+function warmupPty(): void {
   sendStatus("Warming up terminal\u2026", "active");
   try {
-    const shell = process.env.SHELL || "/bin/zsh";
-    const p = pty.spawn(shell, ["-l", "-i", "-c", "claude"], {
+    const userShell = process.env.SHELL || "/bin/zsh";
+    const p = pty.spawn(userShell, ["-l", "-i", "-c", "claude"], {
       name: "xterm-256color",
       cols: 80,
       rows: 24,

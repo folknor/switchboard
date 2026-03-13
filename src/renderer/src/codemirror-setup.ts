@@ -15,6 +15,7 @@ import {
 } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import type { Extension } from "@codemirror/state";
 import { EditorState } from "@codemirror/state";
 import {
   drawSelection,
@@ -28,11 +29,11 @@ import {
 import { dracula } from "@ddietr/codemirror-themes/theme/dracula";
 import { tags } from "@lezer/highlight";
 
-const markdownExtras = HighlightStyle.define([
+const markdownExtras: Extension = HighlightStyle.define([
   { tag: tags.monospace, color: "#8BE9FD" },
 ]);
 
-const appThemePatch = EditorView.theme(
+const appThemePatch: Extension = EditorView.theme(
   {
     "&": { height: "100%" },
     ".cm-content": { padding: "20px 8px" },
@@ -44,7 +45,7 @@ const appThemePatch = EditorView.theme(
   { dark: true },
 );
 
-function createPlanEditor(parent) {
+function createPlanEditor(parent: HTMLElement): EditorView {
   const state = EditorState.create({
     doc: "",
     extensions: [

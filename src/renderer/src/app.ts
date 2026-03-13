@@ -2,121 +2,180 @@ import "@xterm/xterm/css/xterm.css";
 import "./style.css";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import type { ITheme } from "@xterm/xterm";
 import { Terminal } from "@xterm/xterm";
 import morphdom from "morphdom";
-import { createPlanEditor } from "./codemirror-setup";
+import { type CMEditorView, createPlanEditor } from "./codemirror-setup";
 
-const statusBarInfo = document.getElementById("status-bar-info");
-const statusBarActivity = document.getElementById("status-bar-activity");
-const terminalsEl = document.getElementById("terminals");
-const sidebarContent = document.getElementById("sidebar-content");
-const plansContent = document.getElementById("plans-content");
-const placeholder = document.getElementById("placeholder");
-const archiveToggle = document.getElementById("archive-toggle");
-const starToggle = document.getElementById("star-toggle");
-const searchInput = document.getElementById("search-input");
-const terminalHeader = document.getElementById("terminal-header");
-const terminalHeaderName = document.getElementById("terminal-header-name");
-const terminalHeaderId = document.getElementById("terminal-header-id");
-const terminalHeaderStatus = document.getElementById("terminal-header-status");
-const terminalStopBtn = document.getElementById("terminal-stop-btn");
-const terminalRestartBtn = document.getElementById("terminal-restart-btn");
-const runningToggle = document.getElementById("running-toggle");
-const todayToggle = document.getElementById("today-toggle");
-const planViewer = document.getElementById("plan-viewer");
-const planViewerTitle = document.getElementById("plan-viewer-title");
-const planViewerFilepath = document.getElementById("plan-viewer-filepath");
-const planViewerEditorEl = document.getElementById("plan-viewer-editor");
-const planCopyPathBtn = document.getElementById("plan-copy-path-btn");
-const planCopyContentBtn = document.getElementById("plan-copy-content-btn");
-const planSaveBtn = document.getElementById("plan-save-btn");
+// biome-ignore lint/suspicious/noExplicitAny: session objects from IPC have dynamic shape
+type SessionObj = Record<string, any>;
+// biome-ignore lint/suspicious/noExplicitAny: project objects from IPC have dynamic shape
+type ProjectObj = Record<string, any>;
 
-let currentPlanContent = "";
-let currentPlanFilePath = "";
-let _currentPlanFilename = "";
-let planEditorView = null;
-const loadingStatus = document.getElementById("loading-status");
-const sessionFilters = document.getElementById("session-filters");
-const searchBar = document.getElementById("search-bar");
-const statsContent = document.getElementById("stats-content");
-const memoryContent = document.getElementById("memory-content");
-const statsViewer = document.getElementById("stats-viewer");
-const statsViewerBody = document.getElementById("stats-viewer-body");
-const memoryViewer = document.getElementById("memory-viewer");
-const memoryViewerTitle = document.getElementById("memory-viewer-title");
-const memoryViewerFilename = document.getElementById("memory-viewer-filename");
-const memoryViewerBody = document.getElementById("memory-viewer-body");
-const terminalArea = document.getElementById("terminal-area");
-const settingsViewer = document.getElementById("settings-viewer");
-const settingsViewerTitle = document.getElementById("settings-viewer-title");
-const settingsViewerBody = document.getElementById("settings-viewer-body");
-const globalSettingsBtn = document.getElementById("global-settings-btn");
-const addProjectBtn = document.getElementById("add-project-btn");
-const jsonlViewer = document.getElementById("jsonl-viewer");
-const jsonlViewerTitle = document.getElementById("jsonl-viewer-title");
-const jsonlViewerSessionId = document.getElementById("jsonl-viewer-session-id");
-const jsonlViewerBody = document.getElementById("jsonl-viewer-body");
+const statusBarInfo: HTMLElement | null =
+  document.getElementById("status-bar-info");
+const statusBarActivity: HTMLElement | null = document.getElementById(
+  "status-bar-activity",
+);
+const terminalsEl: HTMLElement | null = document.getElementById("terminals");
+const sidebarContent: HTMLElement | null =
+  document.getElementById("sidebar-content");
+const plansContent: HTMLElement | null =
+  document.getElementById("plans-content");
+const placeholder: HTMLElement | null = document.getElementById("placeholder");
+const archiveToggle: HTMLElement | null =
+  document.getElementById("archive-toggle");
+const starToggle: HTMLElement | null = document.getElementById("star-toggle");
+const searchInput: HTMLInputElement = document.getElementById(
+  "search-input",
+) as HTMLInputElement;
+const terminalHeader: HTMLElement | null =
+  document.getElementById("terminal-header");
+const terminalHeaderName: HTMLElement | null = document.getElementById(
+  "terminal-header-name",
+);
+const terminalHeaderId: HTMLElement | null =
+  document.getElementById("terminal-header-id");
+const terminalHeaderStatus: HTMLElement | null = document.getElementById(
+  "terminal-header-status",
+);
+const terminalStopBtn: HTMLElement | null =
+  document.getElementById("terminal-stop-btn");
+const terminalRestartBtn: HTMLElement | null = document.getElementById(
+  "terminal-restart-btn",
+);
+const runningToggle: HTMLElement | null =
+  document.getElementById("running-toggle");
+const todayToggle: HTMLElement | null = document.getElementById("today-toggle");
+const planViewer: HTMLElement | null = document.getElementById("plan-viewer");
+const planViewerTitle: HTMLElement | null =
+  document.getElementById("plan-viewer-title");
+const planViewerFilepath: HTMLElement | null = document.getElementById(
+  "plan-viewer-filepath",
+);
+const planViewerEditorEl: HTMLElement | null =
+  document.getElementById("plan-viewer-editor");
+const planCopyPathBtn: HTMLElement | null =
+  document.getElementById("plan-copy-path-btn");
+const planCopyContentBtn: HTMLElement | null = document.getElementById(
+  "plan-copy-content-btn",
+);
+const planSaveBtn: HTMLElement | null =
+  document.getElementById("plan-save-btn");
+
+let currentPlanContent: string = "";
+let currentPlanFilePath: string = "";
+let _currentPlanFilename: string = "";
+let planEditorView: CMEditorView | null = null;
+const loadingStatus: HTMLElement | null =
+  document.getElementById("loading-status");
+const sessionFilters: HTMLElement | null =
+  document.getElementById("session-filters");
+const searchBar: HTMLElement | null = document.getElementById("search-bar");
+const statsContent: HTMLElement | null =
+  document.getElementById("stats-content");
+const memoryContent: HTMLElement | null =
+  document.getElementById("memory-content");
+const statsViewer: HTMLElement | null = document.getElementById("stats-viewer");
+const statsViewerBody: HTMLElement | null =
+  document.getElementById("stats-viewer-body");
+const memoryViewer: HTMLElement | null =
+  document.getElementById("memory-viewer");
+const memoryViewerTitle: HTMLElement | null = document.getElementById(
+  "memory-viewer-title",
+);
+const memoryViewerFilename: HTMLElement | null = document.getElementById(
+  "memory-viewer-filename",
+);
+const memoryViewerBody: HTMLElement | null =
+  document.getElementById("memory-viewer-body");
+const terminalArea: HTMLElement | null =
+  document.getElementById("terminal-area");
+const settingsViewer: HTMLElement | null =
+  document.getElementById("settings-viewer");
+const settingsViewerTitle: HTMLElement | null = document.getElementById(
+  "settings-viewer-title",
+);
+const settingsViewerBody: HTMLElement | null = document.getElementById(
+  "settings-viewer-body",
+);
+const globalSettingsBtn: HTMLElement | null = document.getElementById(
+  "global-settings-btn",
+);
+const addProjectBtn: HTMLElement | null =
+  document.getElementById("add-project-btn");
+const jsonlViewer: HTMLElement | null = document.getElementById("jsonl-viewer");
+const jsonlViewerTitle: HTMLElement | null =
+  document.getElementById("jsonl-viewer-title");
+const jsonlViewerSessionId: HTMLElement | null = document.getElementById(
+  "jsonl-viewer-session-id",
+);
+const jsonlViewerBody: HTMLElement | null =
+  document.getElementById("jsonl-viewer-body");
 
 // Map<sessionId, { terminal, element, fitAddon, session, closed }>
-const openSessions = new Map();
-let activeSessionId = sessionStorage.getItem("activeSessionId") || null;
-function setActiveSession(id) {
+// biome-ignore lint/suspicious/noExplicitAny: dynamic session entry shape
+const openSessions: Map<string, any> = new Map();
+let activeSessionId: string | null =
+  sessionStorage.getItem("activeSessionId") || null;
+function setActiveSession(id: string | null): void {
   activeSessionId = id;
   if (id) sessionStorage.setItem("activeSessionId", id);
   else sessionStorage.removeItem("activeSessionId");
 }
 // Persist slug group expand state across reloads
-function getExpandedSlugs() {
+function getExpandedSlugs(): Set<string> {
   try {
     return new Set(JSON.parse(sessionStorage.getItem("expandedSlugs") || "[]"));
   } catch {
     return new Set();
   }
 }
-function saveExpandedSlugs() {
-  const expanded = [];
-  document.querySelectorAll(".slug-group:not(.collapsed)").forEach((g) => {
+function saveExpandedSlugs(): void {
+  const expanded: string[] = [];
+  for (const g of document.querySelectorAll(".slug-group:not(.collapsed)")) {
     if (g.id) expanded.push(g.id);
-  });
+  }
   sessionStorage.setItem("expandedSlugs", JSON.stringify(expanded));
 }
-let showArchived = false;
-let showStarredOnly = false;
-let showRunningOnly = false;
-let showTodayOnly = false;
-let cachedProjects = [];
-let cachedAllProjects = [];
-let activePtyIds = new Set();
-let activeTab = "sessions";
-let cachedPlans = [];
-let visibleSessionCount = 10;
-let sessionMaxAgeDays = 3;
-const pendingSessions = new Map(); // sessionId → { session, projectPath, folder }
+let showArchived: boolean = false;
+let showStarredOnly: boolean = false;
+let showRunningOnly: boolean = false;
+let showTodayOnly: boolean = false;
+let cachedProjects: ProjectObj[] = [];
+let cachedAllProjects: ProjectObj[] = [];
+let activePtyIds: Set<string> = new Set();
+let activeTab: string = "sessions";
+let cachedPlans: ProjectObj[] = [];
+let visibleSessionCount: number = 10;
+let sessionMaxAgeDays: number = 3;
+// biome-ignore lint/suspicious/noExplicitAny: dynamic pending session shape
+const pendingSessions: Map<string, any> = new Map(); // sessionId → { session, projectPath, folder }
 
 // --- Activity tracking ---
-const unreadSessions = new Set(); // sessions with unseen output
-const attentionSessions = new Set(); // sessions needing user action
-const lastActivityTime = new Map(); // sessionId → Date of last terminal output
+const unreadSessions: Set<string> = new Set(); // sessions with unseen output
+const attentionSessions: Set<string> = new Set(); // sessions needing user action
+const lastActivityTime: Map<string, Date> = new Map(); // sessionId → Date of last terminal output
 
 // Noise patterns to ignore for unread tracking
-const unreadNoiseRe = /file-history-snapshot|^\s*$/;
+const unreadNoiseRe: RegExp = /file-history-snapshot|^\s*$/;
 
-function markUnread(sessionId, data) {
+function markUnread(sessionId: string, data: string): void {
   if (sessionId === activeSessionId) return;
   // Skip noise
   if (unreadNoiseRe.test(data)) return;
   if (!unreadSessions.has(sessionId)) {
     unreadSessions.add(sessionId);
-    const item = document.querySelector(
+    const item: Element | null = document.querySelector(
       `.session-item[data-session-id="${sessionId}"]`,
     );
     if (item) item.classList.add("has-unread");
   }
 }
 
-function clearUnread(sessionId) {
+function clearUnread(sessionId: string): void {
   unreadSessions.delete(sessionId);
-  const item = document.querySelector(
+  const item: Element | null = document.querySelector(
     `.session-item[data-session-id="${sessionId}"]`,
   );
   if (item) item.classList.remove("has-unread");
@@ -289,14 +348,17 @@ const TERMINAL_THEMES = {
   },
 };
 
-let currentThemeName = "switchboard";
-function getTerminalTheme() {
+let currentThemeName: string = "switchboard";
+function getTerminalTheme(): ITheme {
   return TERMINAL_THEMES[currentThemeName] || TERMINAL_THEMES.switchboard;
 }
-let TERMINAL_THEME = getTerminalTheme();
+let TERMINAL_THEME: ITheme = getTerminalTheme();
 
 // --- Terminal key handler: send modifier+key combos as kitty protocol sequences ---
-function attachTerminalKeyHandler(terminal, getSessionId) {
+function attachTerminalKeyHandler(
+  terminal: Terminal,
+  getSessionId: () => string,
+): void {
   terminal.attachCustomKeyEventHandler((e) => {
     // Shift+Enter → kitty protocol: CSI 13 ; 2 u
     // Must return false for ALL event types (keydown, keypress, keyup) to prevent
@@ -328,7 +390,7 @@ const ESC_ALT_SCREEN_ON = "\x1b[?1049h";
 
 // Scroll-to-bottom window: activated by resize or large redraws,
 // then write callbacks keep scrolling until the window expires.
-let redrawScrollActive = null;
+let redrawScrollActive: ReturnType<typeof setTimeout> | null = null;
 
 window.api.onTerminalData((sessionId, data) => {
   const entry = openSessions.get(sessionId);
@@ -391,16 +453,18 @@ window.api.onSessionDetected((tempId, realId) => {
   terminalHeaderName.textContent = "New session";
 
   // Refresh sidebar to show the new session, then select it
-  loadProjects().then(() => {
-    const item = document.querySelector(`[data-session-id="${realId}"]`);
+  void loadProjects().then(() => {
+    const item: Element | null = document.querySelector(
+      `[data-session-id="${realId}"]`,
+    );
     if (item) {
-      document
-        .querySelectorAll(".session-item.active")
-        .forEach((el) => el.classList.remove("active"));
+      for (const el of document.querySelectorAll(".session-item.active")) {
+        el.classList.remove("active");
+      }
       item.classList.add("active");
     }
   });
-  pollActiveSessions();
+  void pollActiveSessions();
 });
 
 window.api.onSessionForked((oldId, newId) => {
@@ -420,18 +484,20 @@ window.api.onSessionForked((oldId, newId) => {
 
   terminalHeaderId.textContent = newId;
 
-  loadProjects().then(() => {
-    const item = document.querySelector(`[data-session-id="${newId}"]`);
+  void loadProjects().then(() => {
+    const item: Element | null = document.querySelector(
+      `[data-session-id="${newId}"]`,
+    );
     if (item) {
-      document
-        .querySelectorAll(".session-item.active")
-        .forEach((el) => el.classList.remove("active"));
+      for (const el of document.querySelectorAll(".session-item.active")) {
+        el.classList.remove("active");
+      }
       item.classList.add("active");
-      const summary = item.querySelector(".session-summary");
+      const summary: Element | null = item.querySelector(".session-summary");
       if (summary) terminalHeaderName.textContent = summary.textContent;
     }
   });
-  pollActiveSessions();
+  void pollActiveSessions();
 });
 
 window.api.onProcessExited((sessionId, _exitCode) => {
@@ -464,7 +530,7 @@ window.api.onProcessExited((sessionId, _exitCode) => {
     }
     sessionMap.delete(sessionId);
     renderProjects(showArchived ? cachedAllProjects : cachedProjects);
-    pollActiveSessions();
+    void pollActiveSessions();
     return;
   }
 
@@ -474,14 +540,16 @@ window.api.onProcessExited((sessionId, _exitCode) => {
     // Remove from cached project data
     for (const projList of [cachedProjects, cachedAllProjects]) {
       for (const proj of projList) {
-        proj.sessions = proj.sessions.filter((s) => s.sessionId !== sessionId);
+        proj.sessions = proj.sessions.filter(
+          (s: SessionObj) => s.sessionId !== sessionId,
+        );
       }
     }
     sessionMap.delete(sessionId);
     renderProjects(showArchived ? cachedAllProjects : cachedProjects);
   }
 
-  pollActiveSessions();
+  void pollActiveSessions();
 });
 
 // --- Terminal notifications (iTerm2 OSC 9 — "needs attention") ---
@@ -507,14 +575,15 @@ window.api.onTerminalNotification((sessionId, message) => {
 
 // --- Progress state (iTerm2 OSC 9;4) ---
 // state: 0=clear, 1=progress%, 2=error, 3=indeterminate(busy), 4=warning
-const sessionProgressState = new Map();
+const sessionProgressState: Map<string, { state: number; percent: number }> =
+  new Map();
 
 window.api.onProgressState((sessionId, state, percent) => {
   sessionProgressState.set(sessionId, { state, percent });
   updateProgressIndicators(sessionId);
 });
 
-function updateProgressIndicators(sessionId) {
+function updateProgressIndicators(sessionId: string): void {
   const info = sessionProgressState.get(sessionId);
   const state = info?.state ?? 0;
 
@@ -534,13 +603,13 @@ function updateProgressIndicators(sessionId) {
     if (!bar) return;
     bar.className = `progress-state-${state}`;
     if (state === 1) {
-      bar.style.setProperty("--progress", `${percent || 0}%`);
+      bar.style.setProperty("--progress", `${info?.percent || 0}%`);
     }
   }
 }
 
 // --- Filter toggle helpers ---
-function resetSortDebouncing() {
+function resetSortDebouncing(): void {
   sortSnapshot.clear();
   lastProjectSortTime = 0;
 }
@@ -586,10 +655,10 @@ todayToggle.addEventListener("click", () => {
 });
 
 // --- Search (debounced, per-tab FTS) ---
-let searchDebounceTimer = null;
-const searchClear = document.getElementById("search-clear");
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const searchClear: HTMLElement | null = document.getElementById("search-clear");
 
-function clearSearch() {
+function clearSearch(): void {
   searchInput.value = "";
   searchBar.classList.remove("has-query");
   if (searchDebounceTimer) {
@@ -674,23 +743,23 @@ terminalRestartBtn.addEventListener("click", () => {
   entry.terminal.dispose();
   entry.element.remove();
   openSessions.delete(activeSessionId);
-  openSession(entry.session);
+  void openSession(entry.session);
 });
 
 // --- Poll for active PTY sessions ---
-async function pollActiveSessions() {
+async function pollActiveSessions(): Promise<void> {
   try {
-    const ids = await window.api.getActiveSessions();
+    const ids: string[] = await window.api.getActiveSessions();
     activePtyIds = new Set(ids);
     updateRunningIndicators();
     updateTerminalHeader();
   } catch {}
 }
 
-function updateRunningIndicators() {
-  document.querySelectorAll(".session-item").forEach((item) => {
-    const id = item.dataset.sessionId;
-    const running = activePtyIds.has(id);
+function updateRunningIndicators(): void {
+  for (const item of document.querySelectorAll(".session-item")) {
+    const id: string | undefined = (item as HTMLElement).dataset.sessionId;
+    const running: boolean = id ? activePtyIds.has(id) : false;
     item.classList.toggle("has-running-pty", running);
     if (!running) {
       item.classList.remove(
@@ -700,23 +769,25 @@ function updateRunningIndicators() {
         "has-progress",
         "has-error",
       );
-      unreadSessions.delete(id);
-      attentionSessions.delete(id);
-      sessionProgressState.delete(id);
+      if (id) {
+        unreadSessions.delete(id);
+        attentionSessions.delete(id);
+        sessionProgressState.delete(id);
+      }
     }
-    const dot = item.querySelector(".session-status-dot");
+    const dot: Element | null = item.querySelector(".session-status-dot");
     if (dot) dot.classList.toggle("running", running);
-  });
+  }
   // Update slug group running dots
-  document.querySelectorAll(".slug-group").forEach((group) => {
-    const hasRunning =
+  for (const group of document.querySelectorAll(".slug-group")) {
+    const hasRunning: boolean =
       group.querySelector(".session-item.has-running-pty") !== null;
-    const dot = group.querySelector(".slug-group-dot");
+    const dot: Element | null = group.querySelector(".slug-group-dot");
     if (dot) dot.classList.toggle("running", hasRunning);
-  });
+  }
 }
 
-function updateTerminalHeader() {
+function updateTerminalHeader(): void {
   if (!activeSessionId) return;
   const running = activePtyIds.has(activeSessionId);
   terminalHeaderStatus.className = running ? "running" : "stopped";
@@ -725,11 +796,11 @@ function updateTerminalHeader() {
   updatePtyTitle();
 }
 
-const terminalHeaderPtyTitle = document.getElementById(
+const terminalHeaderPtyTitle: HTMLElement | null = document.getElementById(
   "terminal-header-pty-title",
 );
 
-function updatePtyTitle() {
+function updatePtyTitle(): void {
   if (!(activeSessionId && terminalHeaderPtyTitle)) return;
   const entry = openSessions.get(activeSessionId);
   const title = entry?.ptyTitle || "";
@@ -755,9 +826,9 @@ setInterval(() => {
 }, 30000);
 
 // Shared session map so all caches reference the same objects
-const sessionMap = new Map();
+const sessionMap: Map<string, SessionObj> = new Map();
 
-function dedup(projects) {
+function dedup(projects: ProjectObj[]): void {
   for (const p of projects) {
     for (let i = 0; i < p.sessions.length; i++) {
       const s = p.sessions[i];
@@ -771,7 +842,7 @@ function dedup(projects) {
   }
 }
 
-async function loadProjects() {
+async function loadProjects(): Promise<void> {
   const wasEmpty = cachedProjects.length === 0;
   if (wasEmpty) {
     loadingStatus.textContent = "Loading\u2026";
@@ -857,15 +928,15 @@ async function loadProjects() {
   renderDefaultStatus();
 }
 
-function slugId(slug) {
+function slugId(slug: string): string {
   return `slug-${slug.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
-function folderId(projectPath) {
+function folderId(projectPath: string): string {
   return `project-${projectPath.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
-function buildSlugGroup(slug, sessions) {
+function buildSlugGroup(slug: string, sessions: SessionObj[]): HTMLDivElement {
   const group = document.createElement("div");
   const id = slugId(slug);
   const expanded = getExpandedSlugs().has(id);
@@ -923,8 +994,8 @@ function buildSlugGroup(slug, sessions) {
   const sessionsContainer = document.createElement("div");
   sessionsContainer.className = "slug-group-sessions";
 
-  const promoted = [];
-  const rest = [];
+  const promoted: SessionObj[] = [];
+  const rest: SessionObj[] = [];
   for (const session of sessions) {
     if (activePtyIds.has(session.sessionId)) {
       promoted.push(session);
@@ -968,12 +1039,15 @@ function buildSlugGroup(slug, sessions) {
 // Sort debouncing: preserve order when timestamps change by small amounts (background refreshes).
 // Only re-sort an item when its timestamp jumps significantly (e.g. user opened an old session).
 // Snapshot stores the sortTime actually used, so small drifts accumulate and eventually trigger resort.
-const sortSnapshot = new Map(); // itemId → sortTime used in last render
-const SORT_DRIFT_THRESHOLD = 5 * 60 * 1000; // 5 minutes
-let lastProjectSortTime = 0; // timestamp of last project group re-sort
+const sortSnapshot: Map<string, number> = new Map(); // itemId → sortTime used in last render
+const SORT_DRIFT_THRESHOLD: number = 5 * 60 * 1000; // 5 minutes
+let lastProjectSortTime: number = 0; // timestamp of last project group re-sort
 
-let lastRenderWasSearch = false;
-function renderProjects(projects, isSearchResult) {
+let lastRenderWasSearch: boolean = false;
+function renderProjects(
+  projects: ProjectObj[],
+  isSearchResult?: boolean,
+): void {
   const newSidebar = document.createElement("div");
 
   // Debounce project group re-sorting: only re-sort if >5 min since last sort
@@ -1008,9 +1082,9 @@ function renderProjects(projects, isSearchResult) {
       filtered = filtered.filter((s) => activePtyIds.has(s.sessionId));
     }
     if (showTodayOnly) {
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      filtered = filtered.filter((s) => {
+      const todayDate = new Date();
+      const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(todayDate.getDate()).padStart(2, "0")}`;
+      filtered = filtered.filter((s: SessionObj) => {
         if (!s.modified) return false;
         const d = new Date(s.modified);
         return (
@@ -1036,7 +1110,7 @@ function renderProjects(projects, isSearchResult) {
 
     // === STEP 3: Slug grouping ===
     const slugMap = new Map(); // slug → sessions[]
-    const ungrouped = [];
+    const ungrouped: SessionObj[] = [];
     for (const session of filtered) {
       if (session.slug) {
         if (!slugMap.has(session.slug)) slugMap.set(session.slug, []);
@@ -1047,7 +1121,13 @@ function renderProjects(projects, isSearchResult) {
     }
 
     // Build render items (slug group = 1 item)
-    const allItems = [];
+    const allItems: {
+      sortTime: number;
+      pinned: boolean;
+      running: boolean;
+      element: HTMLDivElement;
+      effectiveSortTime?: number;
+    }[] = [];
     for (const session of ungrouped) {
       const isRunning =
         activePtyIds.has(session.sessionId) ||
@@ -1111,8 +1191,8 @@ function renderProjects(projects, isSearchResult) {
     }
 
     // === STEP 5: Truncate — split into visible vs older ===
-    let visible = [];
-    let older = [];
+    let visible: typeof allItems = [];
+    let older: typeof allItems = [];
     if (isSearchResult || showStarredOnly || showRunningOnly || showTodayOnly) {
       visible = allItems;
     } else {
@@ -1224,7 +1304,7 @@ function renderProjects(projects, isSearchResult) {
 
   morphdom(sidebarContent, newSidebar, {
     childrenOnly: true,
-    onBeforeElUpdated(fromEl, toEl) {
+    onBeforeElUpdated(fromEl: HTMLElement, toEl: HTMLElement): boolean {
       if (fromEl.classList.contains("project-header")) {
         if (fromEl.classList.contains("collapsed")) {
           toEl.classList.add("collapsed");
@@ -1266,7 +1346,7 @@ function renderProjects(projects, isSearchResult) {
       }
       return true;
     },
-    getNodeKey(node) {
+    getNodeKey(node: HTMLElement): string | undefined {
       return node.id || undefined;
     },
   });
@@ -1284,28 +1364,34 @@ function renderProjects(projects, isSearchResult) {
   }
 }
 
-function rebindSidebarEvents(projects) {
+function rebindSidebarEvents(projects: ProjectObj[]): void {
   for (const project of projects) {
     const fId = folderId(project.projectPath);
     const header = document.getElementById(`ph-${fId}`);
     if (!header) continue;
     const newBtn = header.querySelector(".project-new-btn");
     if (newBtn) {
-      newBtn.onclick = (e) => {
+      (newBtn as HTMLElement).onclick = (e: MouseEvent): void => {
         e.stopPropagation();
         showNewSessionPopover(project, newBtn);
       };
     }
-    const settingsBtn = header.querySelector(".project-settings-btn");
+    const settingsBtn: Element | null = header.querySelector(
+      ".project-settings-btn",
+    );
     if (settingsBtn) {
-      settingsBtn.onclick = (e) => {
+      (settingsBtn as HTMLElement).onclick = (e: MouseEvent): void => {
         e.stopPropagation();
-        openSettingsViewer("project", project.projectPath);
+        void openSettingsViewer("project", project.projectPath);
       };
     }
-    const archiveGroupBtn = header.querySelector(".project-archive-btn");
+    const archiveGroupBtn: Element | null = header.querySelector(
+      ".project-archive-btn",
+    );
     if (archiveGroupBtn) {
-      archiveGroupBtn.onclick = async (e) => {
+      (archiveGroupBtn as HTMLElement).onclick = async (
+        e: MouseEvent,
+      ): Promise<void> => {
         e.stopPropagation();
         const sessions = project.sessions.filter((s) => !s.archived);
         if (sessions.length === 0) return;
@@ -1327,81 +1413,95 @@ function rebindSidebarEvents(projects) {
           await window.api.archiveSession(s.sessionId, 1);
           s.archived = 1;
         }
-        pollActiveSessions();
-        loadProjects();
+        void pollActiveSessions();
+        void loadProjects();
       };
     }
-    header.onclick = (e) => {
+    header.onclick = (e: MouseEvent): void => {
       if (
-        e.target.closest(".project-new-btn") ||
-        e.target.closest(".project-archive-btn") ||
-        e.target.closest(".project-settings-btn")
+        (e.target as HTMLElement).closest(".project-new-btn") ||
+        (e.target as HTMLElement).closest(".project-archive-btn") ||
+        (e.target as HTMLElement).closest(".project-settings-btn")
       )
         return;
       header.classList.toggle("collapsed");
     };
   }
 
-  sidebarContent.querySelectorAll(".slug-group-header").forEach((header) => {
-    const archiveBtn = header.querySelector(".slug-group-archive-btn");
+  for (const slugHeader of sidebarContent.querySelectorAll(
+    ".slug-group-header",
+  )) {
+    const archiveBtn: Element | null = slugHeader.querySelector(
+      ".slug-group-archive-btn",
+    );
     if (archiveBtn) {
-      archiveBtn.onclick = async (e) => {
+      (archiveBtn as HTMLElement).onclick = async (
+        e: MouseEvent,
+      ): Promise<void> => {
         e.stopPropagation();
-        const group = header.parentElement;
-        const sessionItems = group.querySelectorAll(".session-item");
+        const group: HTMLElement | null = slugHeader.parentElement;
+        const sessionItems: NodeListOf<Element> = group
+          ? group.querySelectorAll(".session-item")
+          : document.querySelectorAll(".never-match-empty");
         for (const item of sessionItems) {
-          const sid = item.dataset.sessionId;
-          const session = sessionMap.get(sid);
+          const sid: string | undefined = (item as HTMLElement).dataset
+            .sessionId;
+          if (!sid) continue;
+          const session: SessionObj | undefined = sessionMap.get(sid);
           if (!session || session.archived) continue;
           if (activePtyIds.has(sid)) await window.api.stopSession(sid);
           await window.api.archiveSession(sid, 1);
           session.archived = 1;
         }
-        pollActiveSessions();
-        loadProjects();
+        void pollActiveSessions();
+        void loadProjects();
       };
     }
-    header.onclick = (e) => {
-      if (e.target.closest(".slug-group-archive-btn")) return;
-      header.parentElement.classList.toggle("collapsed");
+    (slugHeader as HTMLElement).onclick = (e: MouseEvent): void => {
+      if ((e.target as HTMLElement).closest(".slug-group-archive-btn")) return;
+      slugHeader.parentElement?.classList.toggle("collapsed");
       saveExpandedSlugs();
     };
-  });
+  }
 
-  sidebarContent.querySelectorAll(".slug-group-more").forEach((moreBtn) => {
-    moreBtn.onclick = () => {
-      const group = moreBtn.closest(".slug-group");
+  for (const moreBtn of sidebarContent.querySelectorAll(".slug-group-more")) {
+    (moreBtn as HTMLElement).onclick = (): void => {
+      const group: Element | null = moreBtn.closest(".slug-group");
       if (group) {
         group.classList.remove("collapsed");
         saveExpandedSlugs();
       }
     };
-  });
+  }
 
-  sidebarContent
-    .querySelectorAll(".sessions-more-toggle")
-    .forEach((moreBtn) => {
-      const olderList = moreBtn.nextElementSibling;
-      if (!olderList?.classList.contains("sessions-older")) return;
-      const count = olderList.children.length;
-      moreBtn.onclick = () => {
-        const showing = olderList.style.display !== "none";
-        olderList.style.display = showing ? "none" : "";
-        moreBtn.classList.toggle("expanded", !showing);
-        moreBtn.textContent = showing ? `+ ${count} older` : "- hide older";
-      };
-    });
+  for (const moreBtn of sidebarContent.querySelectorAll(
+    ".sessions-more-toggle",
+  )) {
+    const olderList: Element | null = moreBtn.nextElementSibling;
+    if (!olderList?.classList.contains("sessions-older")) continue;
+    const count: number = olderList.children.length;
+    (moreBtn as HTMLElement).onclick = (): void => {
+      const showing: boolean =
+        (olderList as HTMLElement).style.display !== "none";
+      (olderList as HTMLElement).style.display = showing ? "none" : "";
+      moreBtn.classList.toggle("expanded", !showing);
+      moreBtn.textContent = showing ? `+ ${count} older` : "- hide older";
+    };
+  }
 
-  sidebarContent.querySelectorAll(".session-item").forEach((item) => {
-    const sessionId = item.dataset.sessionId;
-    const session = sessionMap.get(sessionId);
-    if (!session) return;
+  for (const item of sidebarContent.querySelectorAll(".session-item")) {
+    const sessionId: string | undefined = (item as HTMLElement).dataset
+      .sessionId;
+    const session: SessionObj | undefined = sessionId
+      ? sessionMap.get(sessionId)
+      : undefined;
+    if (!session) continue;
 
-    item.onclick = () => openSession(session);
+    (item as HTMLElement).onclick = (): void => void openSession(session);
 
-    const pin = item.querySelector(".session-pin");
+    const pin: Element | null = item.querySelector(".session-pin");
     if (pin) {
-      pin.onclick = async (e) => {
+      (pin as HTMLElement).onclick = async (e: MouseEvent): Promise<void> => {
         e.stopPropagation();
         const { starred } = await window.api.toggleStar(session.sessionId);
         session.starred = starred;
@@ -1409,17 +1509,19 @@ function rebindSidebarEvents(projects) {
       };
     }
 
-    const summaryEl = item.querySelector(".session-summary");
+    const summaryEl: Element | null = item.querySelector(".session-summary");
     if (summaryEl) {
-      summaryEl.ondblclick = (e) => {
+      (summaryEl as HTMLElement).ondblclick = (e: MouseEvent): void => {
         e.stopPropagation();
         startRename(summaryEl, session);
       };
     }
 
-    const stopBtn = item.querySelector(".session-stop-btn");
+    const stopBtn: Element | null = item.querySelector(".session-stop-btn");
     if (stopBtn) {
-      stopBtn.onclick = async (e) => {
+      (stopBtn as HTMLElement).onclick = async (
+        e: MouseEvent,
+      ): Promise<void> => {
         e.stopPropagation();
         await window.api.stopSession(session.sessionId);
         activePtyIds.delete(session.sessionId);
@@ -1432,46 +1534,55 @@ function rebindSidebarEvents(projects) {
       };
     }
 
-    const forkBtn = item.querySelector(".session-fork-btn");
+    const forkBtn: Element | null = item.querySelector(".session-fork-btn");
     if (forkBtn) {
-      forkBtn.onclick = async (e) => {
+      (forkBtn as HTMLElement).onclick = async (
+        e: MouseEvent,
+      ): Promise<void> => {
         e.stopPropagation();
         // Find the project for this session
-        const project = [...cachedAllProjects, ...cachedProjects].find((p) =>
-          p.sessions.some((s) => s.sessionId === session.sessionId),
+        const project: ProjectObj | undefined = [
+          ...cachedAllProjects,
+          ...cachedProjects,
+        ].find((p: ProjectObj) =>
+          p.sessions.some((s: SessionObj) => s.sessionId === session.sessionId),
         );
         if (project) {
-          forkSession(session, project);
+          void forkSession(session, project);
         }
       };
     }
 
-    const jsonlBtn = item.querySelector(".session-jsonl-btn");
+    const jsonlBtn: Element | null = item.querySelector(".session-jsonl-btn");
     if (jsonlBtn) {
-      jsonlBtn.onclick = (e) => {
+      (jsonlBtn as HTMLElement).onclick = (e: MouseEvent): void => {
         e.stopPropagation();
-        showJsonlViewer(session);
+        void showJsonlViewer(session);
       };
     }
 
-    const archiveBtn = item.querySelector(".session-archive-btn");
+    const archiveBtn: Element | null = item.querySelector(
+      ".session-archive-btn",
+    );
     if (archiveBtn) {
-      archiveBtn.onclick = async (e) => {
+      (archiveBtn as HTMLElement).onclick = async (
+        e: MouseEvent,
+      ): Promise<void> => {
         e.stopPropagation();
         const newVal = session.archived ? 0 : 1;
         if (newVal && activePtyIds.has(session.sessionId)) {
           await window.api.stopSession(session.sessionId);
-          pollActiveSessions();
+          void pollActiveSessions();
         }
         await window.api.archiveSession(session.sessionId, newVal);
         session.archived = newVal;
-        loadProjects();
+        void loadProjects();
       };
     }
-  });
+  }
 }
 
-function buildSessionItem(session) {
+function buildSessionItem(session: SessionObj): HTMLDivElement {
   const item = document.createElement("div");
   item.className = "session-item";
   item.id = `si-${session.sessionId}`;
@@ -1576,7 +1687,7 @@ function buildSessionItem(session) {
   return item;
 }
 
-function startRename(summaryEl, session) {
+function startRename(summaryEl: Element, session: SessionObj): void {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "session-rename-input";
@@ -1586,7 +1697,7 @@ function startRename(summaryEl, session) {
   input.focus();
   input.select();
 
-  const save = async () => {
+  const save = async (): Promise<void> => {
     const newName = input.value.trim();
     const nameToSave = newName && newName !== session.summary ? newName : null;
     await window.api.renameSession(session.sessionId, nameToSave);
@@ -1619,7 +1730,10 @@ function startRename(summaryEl, session) {
   });
 }
 
-async function launchNewSession(project, sessionOptions) {
+async function launchNewSession(
+  project: ProjectObj,
+  sessionOptions?: Record<string, unknown>,
+): Promise<void> {
   const sessionId = crypto.randomUUID();
   const projectPath = project.projectPath;
   const session = {
@@ -1652,25 +1766,27 @@ async function launchNewSession(project, sessionOptions) {
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 
   // Update sidebar
-  document
-    .querySelectorAll(".session-item.active")
-    .forEach((el) => el.classList.remove("active"));
-  const item = document.querySelector(`[data-session-id="${sessionId}"]`);
+  for (const el of document.querySelectorAll(".session-item.active")) {
+    el.classList.remove("active");
+  }
+  const item: Element | null = document.querySelector(
+    `[data-session-id="${sessionId}"]`,
+  );
   if (item) item.classList.add("active");
-  document
-    .querySelectorAll(".terminal-container")
-    .forEach((el) => el.classList.remove("visible"));
+  for (const el of document.querySelectorAll(".terminal-container")) {
+    el.classList.remove("visible");
+  }
   placeholder.style.display = "none";
   hidePlanViewer();
   setActiveSession(sessionId);
   showTerminalHeader(session);
 
   // Create terminal
-  const container = document.createElement("div");
+  const container: HTMLDivElement = document.createElement("div");
   container.className = "terminal-container visible";
   terminalsEl.appendChild(container);
 
-  const terminal = new Terminal({
+  const terminal: Terminal = new Terminal({
     fontSize: 12,
     fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
     theme: TERMINAL_THEME,
@@ -1679,7 +1795,7 @@ async function launchNewSession(project, sessionOptions) {
     convertEol: true,
   });
 
-  const fitAddon = new FitAddon();
+  const fitAddon: FitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(
     new WebLinksAddon((_event, url) => window.api.openExternal(url)),
@@ -1732,15 +1848,15 @@ async function launchNewSession(project, sessionOptions) {
   window.api.resizeTerminal(sessionId, terminal.cols, terminal.rows);
 
   terminal.focus();
-  pollActiveSessions();
+  void pollActiveSessions();
 }
 
 // Legacy alias
-function _openNewSession(project) {
+function _openNewSession(project: ProjectObj): Promise<void> {
   return launchNewSession(project);
 }
 
-function showTerminalHeader(session) {
+function showTerminalHeader(session: SessionObj): void {
   const displayName = cleanDisplayName(session.name || session.summary);
   terminalHeaderName.textContent = displayName;
   terminalHeaderId.textContent = session.sessionId;
@@ -1749,20 +1865,22 @@ function showTerminalHeader(session) {
   updateProgressIndicators(session.sessionId);
 }
 
-async function openSession(session) {
+async function openSession(session: SessionObj): Promise<void> {
   const { sessionId, projectPath } = session;
 
   // Update sidebar active state
-  document
-    .querySelectorAll(".session-item.active")
-    .forEach((el) => el.classList.remove("active"));
-  const item = document.querySelector(`[data-session-id="${sessionId}"]`);
+  for (const el of document.querySelectorAll(".session-item.active")) {
+    el.classList.remove("active");
+  }
+  const item: Element | null = document.querySelector(
+    `[data-session-id="${sessionId}"]`,
+  );
   if (item) item.classList.add("active");
 
   // Hide all terminal containers and plan viewer
-  document
-    .querySelectorAll(".terminal-container")
-    .forEach((el) => el.classList.remove("visible"));
+  for (const el of document.querySelectorAll(".terminal-container")) {
+    el.classList.remove("visible");
+  }
   placeholder.style.display = "none";
   hidePlanViewer();
   setActiveSession(sessionId);
@@ -1783,7 +1901,7 @@ async function openSession(session) {
       openSessions.delete(sessionId);
       // Terminal sessions re-spawn fresh
       if (session.type === "terminal") {
-        launchTerminalSession({ projectPath: session.projectPath });
+        void launchTerminalSession({ projectPath: session.projectPath });
         return;
       }
     } else {
@@ -1865,12 +1983,12 @@ async function openSession(session) {
   window.api.resizeTerminal(sessionId, terminal.cols, terminal.rows);
 
   terminal.focus();
-  pollActiveSessions();
+  void pollActiveSessions();
 }
 
 // Handle window resize
 // Resize: fit immediately, scroll to bottom as PTY re-render data arrives
-let resizeScrollActive = null;
+let resizeScrollActive: ReturnType<typeof setTimeout> | null = null;
 window.addEventListener("resize", () => {
   if (activeSessionId && openSessions.has(activeSessionId)) {
     const entry = openSessions.get(activeSessionId);
@@ -1882,19 +2000,19 @@ window.addEventListener("resize", () => {
   }
 });
 
-function cleanDisplayName(name) {
+function cleanDisplayName(name: string): string {
   if (!name) return name;
-  const prefix = "Implement the following plan:";
+  const prefix: string = "Implement the following plan:";
   if (name.startsWith(prefix)) return name.slice(prefix.length).trim();
   return name;
 }
 
-function formatDate(date) {
-  const now = new Date();
-  const diff = now - date;
-  const mins = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
+function formatDate(date: Date): string {
+  const formatNow: Date = new Date();
+  const diff: number = formatNow.getTime() - date.getTime();
+  const mins: number = Math.floor(diff / 60000);
+  const hours: number = Math.floor(diff / 3600000);
+  const days: number = Math.floor(diff / 86400000);
 
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
@@ -1903,21 +2021,21 @@ function formatDate(date) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function escapeHtml(str) {
+function escapeHtml(str: string): string {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
 }
 
 // --- Tab switching ---
-document.querySelectorAll(".sidebar-tab").forEach((tab) => {
+for (const tab of document.querySelectorAll(".sidebar-tab")) {
   tab.addEventListener("click", () => {
-    const tabName = tab.dataset.tab;
+    const tabName: string | undefined = (tab as HTMLElement).dataset.tab;
     if (tabName === activeTab) return;
-    activeTab = tabName;
-    document
-      .querySelectorAll(".sidebar-tab")
-      .forEach((t) => t.classList.toggle("active", t.dataset.tab === tabName));
+    activeTab = tabName || "sessions";
+    for (const t of document.querySelectorAll(".sidebar-tab")) {
+      t.classList.toggle("active", (t as HTMLElement).dataset.tab === tabName);
+    }
 
     // Clear search on tab switch
     searchInput.value = "";
@@ -1943,12 +2061,12 @@ document.querySelectorAll(".sidebar-tab").forEach((tab) => {
       // Catch up on changes that happened while on another tab
       if (projectsChangedWhileAway) {
         projectsChangedWhileAway = false;
-        loadProjects();
+        void loadProjects();
       }
     } else if (tabName === "plans") {
       searchBar.style.display = "";
       plansContent.style.display = "";
-      loadPlans();
+      void loadPlans();
     } else if (tabName === "stats") {
       statsContent.style.display = "";
       // Immediately show stats viewer in main area
@@ -1958,23 +2076,23 @@ document.querySelectorAll(".sidebar-tab").forEach((tab) => {
       memoryViewer.style.display = "none";
       settingsViewer.style.display = "none";
       statsViewer.style.display = "flex";
-      loadStats();
+      void loadStats();
     } else if (tabName === "memory") {
       searchBar.style.display = "";
       memoryContent.style.display = "";
-      loadMemories();
+      void loadMemories();
     }
   });
-});
+}
 
 // --- Plans ---
-async function loadPlans() {
+async function loadPlans(): Promise<void> {
   cachedPlans = await window.api.getPlans();
   renderPlans();
 }
 
-function renderPlans(plans) {
-  plans = plans || cachedPlans;
+function renderPlans(plansArg?: ProjectObj[]): void {
+  const plans: ProjectObj[] = plansArg || cachedPlans;
   plansContent.innerHTML = "";
   if (plans.length === 0) {
     const empty = document.createElement("div");
@@ -1988,7 +2106,7 @@ function renderPlans(plans) {
   }
 }
 
-function buildPlanItem(plan) {
+function buildPlanItem(plan: ProjectObj): HTMLDivElement {
   const item = document.createElement("div");
   item.className = "session-item plan-item";
 
@@ -2020,17 +2138,16 @@ function buildPlanItem(plan) {
   return item;
 }
 
-async function openPlan(plan) {
+async function openPlan(plan: ProjectObj): Promise<void> {
   // Mark active in sidebar
-  plansContent
-    .querySelectorAll(".plan-item.active")
-    .forEach((el) => el.classList.remove("active"));
-  const items = plansContent.querySelectorAll(".plan-item");
-  items.forEach((el) => {
+  for (const el of plansContent.querySelectorAll(".plan-item.active")) {
+    el.classList.remove("active");
+  }
+  for (const el of plansContent.querySelectorAll(".plan-item")) {
     if (el.querySelector(".session-id")?.textContent === plan.filename) {
       el.classList.add("active");
     }
-  });
+  }
 
   const result = await window.api.readPlan(plan.filename);
   currentPlanContent = result.content;
@@ -2062,7 +2179,11 @@ async function openPlan(plan) {
 }
 
 // Plan toolbar button handlers
-function flashButtonText(btn, text, duration = 1200) {
+function flashButtonText(
+  btn: HTMLElement,
+  text: string,
+  duration: number = 1200,
+): void {
   const original = btn.textContent;
   btn.textContent = text;
   setTimeout(() => {
@@ -2091,7 +2212,7 @@ planSaveBtn.addEventListener("click", async () => {
   flashButtonText(planSaveBtn, "Saved!");
 });
 
-function hideAllViewers() {
+function hideAllViewers(): void {
   planViewer.style.display = "none";
   statsViewer.style.display = "none";
   memoryViewer.style.display = "none";
@@ -2100,12 +2221,12 @@ function hideAllViewers() {
   terminalArea.style.display = "";
 }
 
-function hidePlanViewer() {
+function hidePlanViewer(): void {
   hideAllViewers();
 }
 
 // --- JSONL Message History Viewer ---
-function renderJsonlText(text) {
+function renderJsonlText(text: string): string {
   let html = escapeHtml(text);
   html = html.replace(
     /```(\w*)\n([\s\S]*?)```/g,
@@ -2119,13 +2240,18 @@ function renderJsonlText(text) {
   return html;
 }
 
-function formatDuration(ms) {
+function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   const s = (ms / 1000).toFixed(1);
   return `${s}s`;
 }
 
-function makeCollapsible(className, headerText, bodyContent, startExpanded) {
+function makeCollapsible(
+  className: string,
+  headerText: string,
+  bodyContent: unknown,
+  startExpanded: boolean,
+): HTMLDivElement {
   const wrapper = document.createElement("div");
   wrapper.className = className;
   const header = document.createElement("div");
@@ -2143,8 +2269,8 @@ function makeCollapsible(className, headerText, bodyContent, startExpanded) {
       body.textContent = String(bodyContent);
     }
   }
-  header.onclick = () => {
-    const showing = body.style.display !== "none";
+  header.onclick = (): void => {
+    const showing: boolean = body.style.display !== "none";
     body.style.display = showing ? "none" : "";
     header.classList.toggle("expanded", !showing);
   };
@@ -2153,7 +2279,9 @@ function makeCollapsible(className, headerText, bodyContent, startExpanded) {
   return wrapper;
 }
 
-function renderJsonlEntry(entry) {
+function renderJsonlEntry(
+  entry: Record<string, unknown>,
+): HTMLDivElement | null {
   const ts = entry.timestamp;
   const timeStr = ts ? new Date(ts).toLocaleTimeString() : "";
 
@@ -2221,8 +2349,9 @@ function renderJsonlEntry(entry) {
   }
 
   // --- user / assistant messages ---
-  let role = null;
-  let contentBlocks = null;
+  let role: string | null = null;
+  // biome-ignore lint/suspicious/noExplicitAny: JSONL content blocks have dynamic shapes
+  let contentBlocks: any = null;
 
   if (
     entry.type === "user" ||
@@ -2298,7 +2427,7 @@ function renderJsonlEntry(entry) {
   return div;
 }
 
-async function showJsonlViewer(session) {
+async function showJsonlViewer(session: SessionObj): Promise<void> {
   const result = await window.api.readSessionJsonl(session.sessionId);
   hideAllViewers();
   placeholder.style.display = "none";
@@ -2335,7 +2464,7 @@ async function showJsonlViewer(session) {
 }
 
 // --- Stats ---
-async function loadStats() {
+async function loadStats(): Promise<void> {
   const stats = await window.api.getStats();
   statsViewerBody.innerHTML = "";
   if (!stats) {
@@ -2369,7 +2498,7 @@ async function loadStats() {
   statsViewerBody.appendChild(notice);
 }
 
-function buildDailyBarChart(stats) {
+function buildDailyBarChart(stats: Record<string, unknown>): void {
   const rawTokens = stats.dailyModelTokens || [];
   const rawActivity = stats.dailyActivity || [];
 
@@ -2389,8 +2518,8 @@ function buildDailyBarChart(stats) {
   }
 
   // Generate last 30 days
-  const days = [];
-  const today = new Date();
+  const days: string[] = [];
+  const today: Date = new Date();
   today.setHours(0, 0, 0, 0);
   for (let i = 29; i >= 0; i--) {
     const d = new Date(today);
@@ -2434,7 +2563,7 @@ function buildDailyBarChart(stats) {
       month: "short",
       day: "numeric",
     });
-    let tokStr;
+    let tokStr: string;
     if (tokenValues[i] >= 1e6) tokStr = `${(tokenValues[i] / 1e6).toFixed(1)}M`;
     else if (tokenValues[i] >= 1e3)
       tokStr = `${(tokenValues[i] / 1e3).toFixed(1)}K`;
@@ -2463,7 +2592,7 @@ function buildDailyBarChart(stats) {
   statsViewerBody.appendChild(container);
 }
 
-function buildHeatmap(counts) {
+function buildHeatmap(counts: Record<string, number>): void {
   const container = document.createElement("div");
   container.className = "heatmap-container";
 
@@ -2492,8 +2621,8 @@ function buildHeatmap(counts) {
     "Nov",
     "Dec",
   ];
-  let lastMonth = -1;
-  const weekStarts = [];
+  let lastMonth: number = -1;
+  const weekStarts: Date[] = [];
   const d = new Date(startDate);
   while (d <= endDate) {
     if (d.getDay() === 0) {
@@ -2600,7 +2729,10 @@ function buildHeatmap(counts) {
   statsViewerBody.appendChild(container);
 }
 
-function calculateStreak(counts) {
+function calculateStreak(counts: Record<string, number>): {
+  current: number;
+  longest: number;
+} {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -2621,7 +2753,7 @@ function calculateStreak(counts) {
         if (!current) current = streak;
         if (streak > longest) longest = streak;
         streak = 0;
-        if (current) started = false;
+        started = false;
       }
     }
     d.setDate(d.getDate() - 1);
@@ -2632,7 +2764,10 @@ function calculateStreak(counts) {
   return { current, longest };
 }
 
-function buildStatsSummary(stats, dailyMap) {
+function buildStatsSummary(
+  stats: Record<string, unknown>,
+  dailyMap: Record<string, number>,
+): void {
   const summaryEl = document.createElement("div");
   summaryEl.className = "stats-summary";
 
@@ -2666,7 +2801,7 @@ function buildStatsSummary(stats, dailyMap) {
     const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
     const label = shortName;
     // Format token count in millions/thousands
-    let valueStr;
+    let valueStr: string;
     if (tokens >= 1e9) valueStr = `${(tokens / 1e9).toFixed(1)}B`;
     else if (tokens >= 1e6) valueStr = `${(tokens / 1e6).toFixed(1)}M`;
     else if (tokens >= 1e3) valueStr = `${(tokens / 1e3).toFixed(1)}K`;
@@ -2685,15 +2820,15 @@ function buildStatsSummary(stats, dailyMap) {
 }
 
 // --- Memory ---
-let cachedMemories = [];
+let cachedMemories: ProjectObj[] = [];
 
-async function loadMemories() {
+async function loadMemories(): Promise<void> {
   cachedMemories = await window.api.getMemories();
   renderMemories();
 }
 
-function renderMemories(memories) {
-  memories = memories || cachedMemories;
+function renderMemories(memoriesArg?: ProjectObj[]): void {
+  const memories: ProjectObj[] = memoriesArg || cachedMemories;
   memoryContent.innerHTML = "";
   if (memories.length === 0) {
     const empty = document.createElement("div");
@@ -2707,7 +2842,7 @@ function renderMemories(memories) {
   }
 }
 
-function buildMemoryItem(mem) {
+function buildMemoryItem(mem: ProjectObj): HTMLDivElement {
   const item = document.createElement("div");
   item.className = "session-item memory-item";
 
@@ -2744,20 +2879,19 @@ function buildMemoryItem(mem) {
   return item;
 }
 
-async function openMemory(mem) {
+async function openMemory(mem: ProjectObj): Promise<void> {
   // Mark active in sidebar
-  memoryContent
-    .querySelectorAll(".memory-item.active")
-    .forEach((el) => el.classList.remove("active"));
-  const items = memoryContent.querySelectorAll(".memory-item");
-  items.forEach((el) => {
+  for (const el of memoryContent.querySelectorAll(".memory-item.active")) {
+    el.classList.remove("active");
+  }
+  for (const el of memoryContent.querySelectorAll(".memory-item")) {
     if (
       el.querySelector(".session-id")?.textContent === mem.filename &&
-      el.querySelector(".session-summary")?.textContent.includes(mem.label)
+      el.querySelector(".session-summary")?.textContent?.includes(mem.label)
     ) {
       el.classList.add("active");
     }
-  });
+  }
 
   const content = await window.api.readMemory(mem.filePath);
 
@@ -2775,7 +2909,9 @@ async function openMemory(mem) {
 }
 
 // --- New session dialog ---
-async function resolveDefaultSessionOptions(project) {
+async function resolveDefaultSessionOptions(
+  project: ProjectObj,
+): Promise<Record<string, unknown>> {
   const effective = await window.api.getEffectiveSettings(project.projectPath);
   const options = {};
   if (effective.dangerouslySkipPermissions) {
@@ -2793,17 +2929,21 @@ async function resolveDefaultSessionOptions(project) {
   return options;
 }
 
-async function forkSession(session, project) {
-  const options = await resolveDefaultSessionOptions(project);
+async function forkSession(
+  session: SessionObj,
+  project: ProjectObj,
+): Promise<void> {
+  const options: Record<string, unknown> =
+    await resolveDefaultSessionOptions(project);
   options.forkFrom = session.sessionId;
-  launchNewSession(project, options);
+  void launchNewSession(project, options);
 }
 
-function showNewSessionPopover(project, anchorEl) {
+function showNewSessionPopover(project: ProjectObj, anchorEl: Element): void {
   // Remove any existing popover
-  document
-    .querySelectorAll(".new-session-popover")
-    .forEach((el) => el.remove());
+  for (const el of document.querySelectorAll(".new-session-popover")) {
+    el.remove();
+  }
 
   const popover = document.createElement("div");
   popover.className = "new-session-popover";
@@ -2812,27 +2952,27 @@ function showNewSessionPopover(project, anchorEl) {
   claudeBtn.className = "popover-option";
   claudeBtn.innerHTML =
     '<img src="https://claude.ai/favicon.ico" class="popover-option-icon claude-icon" alt=""> Claude';
-  claudeBtn.onclick = async () => {
+  claudeBtn.onclick = async (): Promise<void> => {
     popover.remove();
-    launchNewSession(project, await resolveDefaultSessionOptions(project));
+    void launchNewSession(project, await resolveDefaultSessionOptions(project));
   };
 
   const claudeOptsBtn = document.createElement("button");
   claudeOptsBtn.className = "popover-option";
   claudeOptsBtn.innerHTML =
     '<img src="https://claude.ai/favicon.ico" class="popover-option-icon claude-icon" alt=""> Claude (Configure...)';
-  claudeOptsBtn.onclick = () => {
+  claudeOptsBtn.onclick = (): void => {
     popover.remove();
-    showNewSessionDialog(project);
+    void showNewSessionDialog(project);
   };
 
   const termBtn = document.createElement("button");
   termBtn.className = "popover-option popover-option-terminal";
   termBtn.innerHTML =
     '<span class="popover-option-icon terminal-icon">&gt;_</span> Terminal';
-  termBtn.onclick = () => {
+  termBtn.onclick = (): void => {
     popover.remove();
-    launchTerminalSession(project);
+    void launchTerminalSession(project);
   };
 
   popover.appendChild(claudeBtn);
@@ -2851,8 +2991,8 @@ function showNewSessionPopover(project, anchorEl) {
   popover.style.left = `${rect.left}px`;
 
   // Close on click outside
-  function onClickOutside(e) {
-    if (!popover.contains(e.target) && e.target !== anchorEl) {
+  function onClickOutside(e: MouseEvent): void {
+    if (!popover.contains(e.target as Node) && e.target !== anchorEl) {
       popover.remove();
       document.removeEventListener("mousedown", onClickOutside);
     }
@@ -2860,7 +3000,7 @@ function showNewSessionPopover(project, anchorEl) {
   setTimeout(() => document.addEventListener("mousedown", onClickOutside), 0);
 }
 
-async function launchTerminalSession(project) {
+async function launchTerminalSession(project: ProjectObj): Promise<void> {
   const sessionId = crypto.randomUUID();
   const projectPath = project.projectPath;
   const session = {
@@ -2894,25 +3034,27 @@ async function launchTerminalSession(project) {
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 
   // Update sidebar
-  document
-    .querySelectorAll(".session-item.active")
-    .forEach((el) => el.classList.remove("active"));
-  const item = document.querySelector(`[data-session-id="${sessionId}"]`);
+  for (const el of document.querySelectorAll(".session-item.active")) {
+    el.classList.remove("active");
+  }
+  const item: Element | null = document.querySelector(
+    `[data-session-id="${sessionId}"]`,
+  );
   if (item) item.classList.add("active");
-  document
-    .querySelectorAll(".terminal-container")
-    .forEach((el) => el.classList.remove("visible"));
+  for (const el of document.querySelectorAll(".terminal-container")) {
+    el.classList.remove("visible");
+  }
   placeholder.style.display = "none";
   hidePlanViewer();
   setActiveSession(sessionId);
   showTerminalHeader(session);
 
   // Create terminal
-  const container = document.createElement("div");
+  const container: HTMLDivElement = document.createElement("div");
   container.className = "terminal-container visible";
   terminalsEl.appendChild(container);
 
-  const terminal = new Terminal({
+  const terminal: Terminal = new Terminal({
     fontSize: 12,
     fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
     theme: TERMINAL_THEME,
@@ -2921,7 +3063,7 @@ async function launchTerminalSession(project) {
     convertEol: true,
   });
 
-  const fitAddon = new FitAddon();
+  const fitAddon: FitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(
     new WebLinksAddon((_event, url) => window.api.openExternal(url)),
@@ -2967,10 +3109,10 @@ async function launchTerminalSession(project) {
 
   window.api.resizeTerminal(sessionId, terminal.cols, terminal.rows);
   terminal.focus();
-  pollActiveSessions();
+  void pollActiveSessions();
 }
 
-async function showNewSessionDialog(project) {
+async function showNewSessionDialog(project: ProjectObj): Promise<void> {
   const effective = await window.api.getEffectiveSettings(project.projectPath);
 
   const overlay = document.createElement("div");
@@ -3006,7 +3148,7 @@ async function showNewSessionDialog(project) {
     },
   ];
 
-  function renderModeGrid() {
+  function renderModeGrid(): string {
     return (
       modes
         .map((m) => {
@@ -3070,31 +3212,35 @@ async function showNewSessionDialog(project) {
     modeGrid.innerHTML = renderModeGrid();
   });
 
-  function close() {
+  function close(): void {
     overlay.remove();
   }
 
-  function start() {
-    const options = {};
+  function start(): void {
+    const options: Record<string, unknown> = {};
     if (dangerousSkip) {
       options.dangerouslySkipPermissions = true;
     } else if (selectedMode) {
       options.permissionMode = selectedMode;
     }
-    if (dialog.querySelector("#nsd-worktree").checked) {
+    if ((dialog.querySelector("#nsd-worktree") as HTMLInputElement).checked) {
       options.worktree = true;
-      options.worktreeName = dialog
-        .querySelector("#nsd-worktree-name")
-        .value.trim();
+      options.worktreeName = (
+        dialog.querySelector("#nsd-worktree-name") as HTMLInputElement
+      ).value.trim();
     }
-    if (dialog.querySelector("#nsd-chrome").checked) {
+    if ((dialog.querySelector("#nsd-chrome") as HTMLInputElement).checked) {
       options.chrome = true;
     }
-    const preLaunch = dialog.querySelector("#nsd-pre-launch").value.trim();
+    const preLaunch: string = (
+      dialog.querySelector("#nsd-pre-launch") as HTMLInputElement
+    ).value.trim();
     if (preLaunch) options.preLaunchCmd = preLaunch;
-    options.addDirs = dialog.querySelector("#nsd-add-dirs").value.trim();
+    options.addDirs = (
+      dialog.querySelector("#nsd-add-dirs") as HTMLInputElement
+    ).value.trim();
     close();
-    launchNewSession(project, options);
+    void launchNewSession(project, options);
   }
 
   dialog.querySelector(".new-session-cancel-btn").onclick = close;
@@ -3104,12 +3250,12 @@ async function showNewSessionDialog(project) {
   });
 
   // Keyboard support
-  function onKey(e) {
+  function onKey(e: KeyboardEvent): void {
     if (e.key === "Escape") {
       close();
       document.removeEventListener("keydown", onKey);
     }
-    if (e.key === "Enter" && !e.target.matches("input")) {
+    if (e.key === "Enter" && !(e.target as HTMLElement).matches("input")) {
       start();
       document.removeEventListener("keydown", onKey);
     }
@@ -3118,7 +3264,10 @@ async function showNewSessionDialog(project) {
 }
 
 // --- Settings viewer ---
-async function openSettingsViewer(scope, projectPath) {
+async function openSettingsViewer(
+  scope: string,
+  projectPath?: string,
+): Promise<void> {
   const isProject = scope === "project";
   const settingsKey = isProject ? `project:${projectPath}` : "global";
   const current = (await window.api.getSetting(settingsKey)) || {};
@@ -3141,14 +3290,14 @@ async function openSettingsViewer(scope, projectPath) {
   memoryViewer.style.display = "none";
   settingsViewer.style.display = "flex";
 
-  function useGlobalCheckbox(fieldName, _label) {
+  function useGlobalCheckbox(fieldName: string, _label?: string): string {
     if (!isProject) return "";
     const useGlobal =
       current[fieldName] === undefined || current[fieldName] === null;
     return `<label class="settings-use-global"><input type="checkbox" data-field="${fieldName}" class="use-global-cb" ${useGlobal ? "checked" : ""}> Use global default</label>`;
   }
 
-  function fieldValue(fieldName, fallback) {
+  function fieldValue(fieldName: string, fallback: unknown): unknown {
     if (
       isProject &&
       (current[fieldName] === undefined || current[fieldName] === null)
@@ -3160,7 +3309,7 @@ async function openSettingsViewer(scope, projectPath) {
     return current[fieldName] !== undefined ? current[fieldName] : fallback;
   }
 
-  function fieldDisabled(fieldName) {
+  function fieldDisabled(fieldName: string): string {
     if (!isProject) return "";
     return current[fieldName] === undefined || current[fieldName] === null
       ? "disabled"
@@ -3300,7 +3449,7 @@ async function openSettingsViewer(scope, projectPath) {
   `;
 
   // Use-global checkboxes toggle field disabled state
-  settingsViewerBody.querySelectorAll(".use-global-cb").forEach((cb) => {
+  for (const cb of settingsViewerBody.querySelectorAll(".use-global-cb")) {
     cb.addEventListener("change", () => {
       const field = cb.dataset.field;
       const _inputs = settingsViewerBody.querySelectorAll(
@@ -3316,10 +3465,12 @@ async function openSettingsViewer(scope, projectPath) {
         addDirs: "sv-add-dirs",
         visibleSessionCount: "sv-visible-count",
       };
-      const input = settingsViewerBody.querySelector(`#${fieldMap[field]}`);
-      if (input) input.disabled = cb.checked;
+      const input: HTMLInputElement | null = settingsViewerBody.querySelector(
+        `#${fieldMap[field]}`,
+      );
+      if (input) input.disabled = (cb as HTMLInputElement).checked;
     });
-  });
+  }
 
   // Save button
   settingsViewerBody
@@ -3329,10 +3480,12 @@ async function openSettingsViewer(scope, projectPath) {
 
       if (isProject) {
         // Only save fields where "use global" is unchecked
-        settingsViewerBody.querySelectorAll(".use-global-cb").forEach((cb) => {
-          if (!cb.checked) {
-            const field = cb.dataset.field;
-            const fieldMap = {
+        for (const cb of settingsViewerBody.querySelectorAll(
+          ".use-global-cb",
+        )) {
+          if (!(cb as HTMLInputElement).checked) {
+            const field: string | undefined = (cb as HTMLElement).dataset.field;
+            const fieldMap: Record<string, () => unknown> = {
               permissionMode: () =>
                 settingsViewerBody.querySelector("#sv-perm-mode").value || null,
               worktree: () =>
@@ -3353,9 +3506,9 @@ async function openSettingsViewer(scope, projectPath) {
                   10,
                 ) || 10,
             };
-            if (fieldMap[field]) settings[field] = fieldMap[field]();
+            if (field && fieldMap[field]) settings[field] = fieldMap[field]();
           }
-        });
+        }
       } else {
         settings.permissionMode =
           settingsViewerBody.querySelector("#sv-perm-mode").value || null;
@@ -3436,14 +3589,14 @@ async function openSettingsViewer(scope, projectPath) {
       await window.api.removeProject(projectPath);
       settingsViewer.style.display = "none";
       placeholder.style.display = "flex";
-      loadProjects();
+      void loadProjects();
     });
   }
 }
 
 // Global settings gear button
 globalSettingsBtn.addEventListener("click", () => {
-  openSettingsViewer("global");
+  void openSettingsViewer("global");
 });
 
 // Add project button
@@ -3451,7 +3604,7 @@ addProjectBtn.addEventListener("click", () => {
   showAddProjectDialog();
 });
 
-function showAddProjectDialog() {
+function showAddProjectDialog(): void {
   const overlay = document.createElement("div");
   overlay.className = "add-project-overlay";
 
@@ -3479,13 +3632,13 @@ function showAddProjectDialog() {
   const errorEl = dialog.querySelector("#add-project-error");
   pathInput.focus();
 
-  function close() {
+  function close(): void {
     overlay.remove();
     document.removeEventListener("keydown", onKey);
   }
 
-  async function addProject() {
-    const projectPath = pathInput.value.trim();
+  async function addProject(): Promise<void> {
+    const projectPath: string = (pathInput as HTMLInputElement).value.trim();
     if (!projectPath) {
       errorEl.textContent = "Please enter a folder path.";
       errorEl.style.display = "block";
@@ -3505,20 +3658,22 @@ function showAddProjectDialog() {
     await loadProjects();
   }
 
-  dialog.querySelector(".add-project-browse-btn").onclick = async () => {
-    const folder = await window.api.browseFolder();
-    if (folder) pathInput.value = folder;
-  };
+  (dialog.querySelector(".add-project-browse-btn") as HTMLElement).onclick =
+    async (): Promise<void> => {
+      const folder: string | null = await window.api.browseFolder();
+      if (folder) (pathInput as HTMLInputElement).value = folder;
+    };
 
   dialog.querySelector(".add-project-cancel-btn").onclick = close;
-  dialog.querySelector(".add-project-add-btn").onclick = addProject;
+  (dialog.querySelector(".add-project-add-btn") as HTMLElement).onclick =
+    (): void => void addProject();
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) close();
   });
 
-  function onKey(e) {
+  function onKey(e: KeyboardEvent): void {
     if (e.key === "Escape") close();
-    if (e.key === "Enter") addProject();
+    if (e.key === "Enter") void addProject();
   }
   document.addEventListener("keydown", onKey);
 }
@@ -3603,42 +3758,46 @@ document.addEventListener("keydown", (e) => {
     const project = cachedAllProjects.find(
       (p) => p.projectPath === projectPath,
     );
-    if (project) launchTerminalSession(project);
+    if (project) void launchTerminalSession(project);
   }
 });
 
 // --- Init: restore settings ---
-(async () => {
-  const global = await window.api.getSetting("global");
-  if (global) {
-    if (global.sidebarWidth) {
+void (async (): Promise<void> => {
+  // biome-ignore lint/suspicious/noExplicitAny: settings shape is dynamic
+  const globalSetting: any = await window.api.getSetting("global");
+  if (globalSetting) {
+    if (globalSetting.sidebarWidth) {
       document.getElementById("sidebar").style.width =
-        `${global.sidebarWidth}px`;
+        `${globalSetting.sidebarWidth}px`;
     }
-    if (global.visibleSessionCount) {
-      visibleSessionCount = global.visibleSessionCount;
+    if (globalSetting.visibleSessionCount) {
+      visibleSessionCount = globalSetting.visibleSessionCount;
     }
-    if (global.sessionMaxAgeDays) {
-      sessionMaxAgeDays = global.sessionMaxAgeDays;
+    if (globalSetting.sessionMaxAgeDays) {
+      sessionMaxAgeDays = globalSetting.sessionMaxAgeDays;
     }
-    if (global.terminalTheme && TERMINAL_THEMES[global.terminalTheme]) {
-      currentThemeName = global.terminalTheme;
+    if (
+      globalSetting.terminalTheme &&
+      TERMINAL_THEMES[globalSetting.terminalTheme]
+    ) {
+      currentThemeName = globalSetting.terminalTheme;
       TERMINAL_THEME = getTerminalTheme();
     }
   }
 })();
 
-loadProjects().then(() => {
+void loadProjects().then(() => {
   // Restore active session after reload
   if (activeSessionId && !openSessions.has(activeSessionId)) {
-    const session = sessionMap.get(activeSessionId);
-    if (session) openSession(session);
+    const session: SessionObj | undefined = sessionMap.get(activeSessionId);
+    if (session) void openSession(session);
   }
 });
 
 // Live-reload sidebar when filesystem changes are detected
-let projectsChangedTimer = null;
-let projectsChangedWhileAway = false;
+let projectsChangedTimer: ReturnType<typeof setTimeout> | null = null;
+let projectsChangedWhileAway: boolean = false;
 window.api.onProjectsChanged(() => {
   // Debounce to avoid rapid re-renders during bulk changes
   if (projectsChangedTimer) clearTimeout(projectsChangedTimer);
@@ -3648,21 +3807,21 @@ window.api.onProjectsChanged(() => {
   }
   projectsChangedTimer = setTimeout(() => {
     projectsChangedTimer = null;
-    loadProjects();
+    void loadProjects();
   }, 300);
 });
 
 // Status bar
-let activityTimer = null;
+let activityTimer: ReturnType<typeof setTimeout> | null = null;
 
-function renderDefaultStatus() {
+function renderDefaultStatus(): void {
   const totalSessions = cachedAllProjects.reduce(
     (n, p) => n + p.sessions.length,
     0,
   );
   const totalProjects = cachedAllProjects.length;
   const running = activePtyIds.size;
-  const parts = [];
+  const parts: string[] = [];
   if (running > 0) parts.push(`${running} running`);
   parts.push(`${totalSessions} sessions`);
   parts.push(`${totalProjects} projects`);
@@ -3685,9 +3844,10 @@ window.api.onStatusUpdate((text, type) => {
 });
 
 // --- Auto-update status + toast ---
-const statusBarUpdater = document.getElementById("status-bar-updater");
-let updaterStatusTimer = null;
-function setUpdaterStatus(text, duration) {
+const statusBarUpdater: HTMLElement | null =
+  document.getElementById("status-bar-updater");
+let updaterStatusTimer: ReturnType<typeof setTimeout> | null = null;
+function setUpdaterStatus(text: string, duration?: number): void {
   if (updaterStatusTimer) clearTimeout(updaterStatusTimer);
   statusBarUpdater.textContent = text;
   if (duration) {
@@ -3696,7 +3856,9 @@ function setUpdaterStatus(text, duration) {
     }, duration);
   }
 }
-const updaterHandler = (type, data) => {
+// biome-ignore lint/suspicious/noExplicitAny: updater event data has dynamic shape
+// biome-ignore lint/nursery/useExplicitType: data parameter requires any for dynamic updater events
+const updaterHandler = (type: string, data: any): void => {
   switch (type) {
     case "checking":
       setUpdaterStatus("Checking for updates…");
@@ -3718,9 +3880,10 @@ const updaterHandler = (type, data) => {
       const msg = document.getElementById("update-toast-msg");
       msg.innerHTML = `New Version Ready<br><span class="update-version">v${data.version}</span>`;
       toast.classList.remove("hidden");
-      document.getElementById("update-restart-btn").onclick = () =>
-        window.api.updaterInstall();
-      document.getElementById("update-dismiss-btn").onclick = () => {
+      document.getElementById("update-restart-btn").onclick = (): void => {
+        void window.api.updaterInstall();
+      };
+      document.getElementById("update-dismiss-btn").onclick = (): void => {
         toast.classList.add("hidden");
         localStorage.setItem("update-dismissed", data.version);
       };
