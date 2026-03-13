@@ -354,7 +354,8 @@ export function registerPtyHandlers(
             const payload = m[2].slice(0, 120);
             // Skip notification (9) — already logged below
             // Skip hyperlinks (8) — too noisy (Claude Code emits them for file paths)
-            if (code !== "9" && code !== "8")
+            // Skip title changes (0) — Claude Code spinner updates ~1/sec
+            if (code !== "9" && code !== "8" && code !== "0")
               log.debug(
                 `[OSC ${code}] session=${currentId} payload="${payload}"`,
               );

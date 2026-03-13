@@ -117,11 +117,11 @@ export function detectSessionTransitions(
       (f: string) => !session.knownJsonlFiles.has(f),
     );
 
+    if (newFiles.length === 0) continue;
+
     log.debug(
       `[detect] session=${sessionId} forkFrom=${session.forkFrom || "none"} folder=${folder} newFiles=${newFiles.length} knownCount=${session.knownJsonlFiles.size} currentCount=${currentFiles.length}`,
     );
-
-    if (newFiles.length === 0) continue;
 
     const emptyFiles = new Set<string>(); // files with no signals yet (still being written)
 
