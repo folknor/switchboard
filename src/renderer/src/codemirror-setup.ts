@@ -80,6 +80,6 @@ function createPlanEditor(parent: HTMLElement): EditorView {
 
 export {
   createPlanEditor,
-  EditorView as CMEditorView,
   EditorState as CMEditorState,
+  EditorView as CMEditorView,
 };
