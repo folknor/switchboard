@@ -4,7 +4,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import morphdom from 'morphdom';
-import { createPlanEditor, CMEditorView, CMEditorState } from './codemirror-setup.js';
+import { createPlanEditor, CMEditorView, CMEditorState } from './codemirror-setup';
 
 const statusBarInfo = document.getElementById('status-bar-info');
 const statusBarActivity = document.getElementById('status-bar-activity');

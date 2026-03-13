@@ -7,8 +7,8 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve('src/main/index.js'),
-          'workers/scan-projects': resolve('src/main/workers/scan-projects.js'),
+          index: resolve('src/main/index.ts'),
+          'workers/scan-projects': resolve('src/main/workers/scan-projects.ts'),
         },
       },
     },
@@ -18,7 +18,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve('src/preload/index.js'),
+          index: resolve('src/preload/index.ts'),
         },
       },
     },
