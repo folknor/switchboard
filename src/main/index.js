@@ -20,6 +20,12 @@ import {
 log.transports.file.level = app.isPackaged ? 'info' : 'debug';
 log.transports.console.level = app.isPackaged ? 'info' : 'debug';
 
+process.on('uncaughtException', (err) => {
+  log.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason) => {
+  log.error('[unhandledRejection]', reason);
+});
 
 // Clean env for child processes — strip Electron internals that cause nested
 // Electron apps (or node-pty inside them) to malfunction.
@@ -188,6 +194,16 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    log.error('[renderer-gone]', details.reason, details.exitCode);
+  });
+  mainWindow.webContents.on('crashed', (_event, killed) => {
+    log.error('[renderer-crashed] killed:', killed);
+  });
+  mainWindow.webContents.on('did-fail-load', (_event, code, desc) => {
+    log.error('[did-fail-load]', code, desc);
   });
 }
 
@@ -607,7 +623,7 @@ function populateCacheViaWorker() {
   });
 
   worker.on('error', (err) => {
-    console.error('Worker error:', err);
+    log.error('[worker-error]', err);
     sendStatus('Worker error: ' + err.message, 'error');
     populatingCache = false;
   });
