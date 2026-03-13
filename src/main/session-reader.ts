@@ -33,6 +33,44 @@ const noopLogger: SessionReaderLogger = {
   warn: () => {},
 };
 
+/** Read just the first line of a file without loading the whole thing into memory */
+function readFirstLine(filePath: string): string | null {
+  const CHUNK = 4096;
+  const buf = Buffer.alloc(CHUNK);
+  let fd: number;
+  try {
+    fd = fs.openSync(filePath, "r");
+  } catch {
+    return null;
+  }
+  try {
+    const bytesRead = fs.readSync(fd, buf, 0, CHUNK, 0);
+    if (bytesRead === 0) return null;
+    const chunk = buf.toString("utf8", 0, bytesRead);
+    const newline = chunk.indexOf("\n");
+    return newline >= 0 ? chunk.slice(0, newline) : chunk;
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/** Extract the text content from a JSONL message entry */
+function extractText(
+  msg: string | { content: string | { text: string }[] } | undefined,
+): string {
+  if (typeof msg === "string") return msg;
+  if (typeof msg?.content === "string") return msg.content;
+  const arr = msg?.content as { text: string }[] | undefined;
+  return arr?.[0]?.text || "";
+}
+
+/**
+ * Max bytes to read from a JSONL file during scanning.
+ * We only need summary, slug, message count, and search text —
+ * reading the full file is unnecessary and crashes on large sessions.
+ */
+const MAX_SCAN_BYTES: number = 2 * 1024 * 1024; // 2MB
+
 /** Derive the real project path by reading cwd from the first JSONL entry in the folder */
 export function deriveProjectPath(
   folderPath: string,
@@ -43,9 +81,7 @@ export function deriveProjectPath(
     // Check direct .jsonl files first
     for (const e of entries) {
       if (e.isFile() && e.name.endsWith(".jsonl")) {
-        const firstLine = fs
-          .readFileSync(path.join(folderPath, e.name), "utf8")
-          .split("\n")[0];
+        const firstLine = readFirstLine(path.join(folderPath, e.name));
         if (firstLine) {
           const parsed = JSON.parse(firstLine);
           if (parsed.cwd) return parsed.cwd as string;
@@ -70,7 +106,7 @@ export function deriveProjectPath(
               jsonlPath = path.join(subDir, "subagents", agentFiles[0]);
           }
           if (jsonlPath) {
-            const firstLine = fs.readFileSync(jsonlPath, "utf8").split("\n")[0];
+            const firstLine = readFirstLine(jsonlPath);
             if (firstLine) {
               const parsed = JSON.parse(firstLine);
               if (parsed.cwd) return parsed.cwd as string;
@@ -91,7 +127,8 @@ export function deriveProjectPath(
   return null;
 }
 
-/** Parse a single .jsonl file into a session object (or null if invalid) */
+/** Parse a single .jsonl file into a session object (or null if invalid).
+ *  Only reads up to MAX_SCAN_BYTES to avoid crashing on huge session files. */
 export function readSessionFile(
   filePath: string,
   folder: string,
@@ -101,8 +138,31 @@ export function readSessionFile(
   const sessionId = path.basename(filePath, ".jsonl");
   try {
     const stat = fs.statSync(filePath);
-    const content = fs.readFileSync(filePath, "utf8");
-    const lines = content.split("\n").filter(Boolean);
+    const fileSize = stat.size;
+
+    // Read up to MAX_SCAN_BYTES from the file
+    const readSize = Math.min(fileSize, MAX_SCAN_BYTES);
+    const buf = Buffer.alloc(readSize);
+    const fd = fs.openSync(filePath, "r");
+    let bytesRead: number;
+    try {
+      bytesRead = fs.readSync(fd, buf, 0, readSize, 0);
+    } finally {
+      fs.closeSync(fd);
+    }
+
+    const content = buf.toString("utf8", 0, bytesRead);
+    // If we truncated, drop the last partial line
+    let lines: string[];
+    if (fileSize > MAX_SCAN_BYTES) {
+      const lastNewline = content.lastIndexOf("\n");
+      lines = (lastNewline >= 0 ? content.slice(0, lastNewline) : content)
+        .split("\n")
+        .filter(Boolean);
+    } else {
+      lines = content.split("\n").filter(Boolean);
+    }
+
     let summary = "";
     let messageCount = 0;
     let textContent = "";
@@ -130,20 +190,12 @@ export function readSessionFile(
       ) {
         messageCount++;
       }
-      const msg = entry.message as
-        | string
-        | { content: string | { text: string }[] }
-        | undefined;
-      const text =
-        typeof msg === "string"
-          ? msg
-          : typeof msg?.content === "string"
-            ? msg.content
-            : (
-                (msg?.content as { text: string }[] | undefined)?.[0] as
-                  | { text: string }
-                  | undefined
-              )?.text || "";
+      const text = extractText(
+        entry.message as
+          | string
+          | { content: string | { text: string }[] }
+          | undefined,
+      );
       if (
         !summary &&
         (entry.type === "user" ||
@@ -155,6 +207,13 @@ export function readSessionFile(
         textContent += `${text.slice(0, 500)}\n`;
       }
     }
+
+    // For truncated files, estimate message count from bytes read
+    if (fileSize > MAX_SCAN_BYTES && messageCount > 0) {
+      const ratio = fileSize / readSize;
+      messageCount = Math.round(messageCount * ratio);
+    }
+
     if (!summary || messageCount < 1) return null;
     return {
       sessionId,

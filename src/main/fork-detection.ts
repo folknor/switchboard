@@ -13,7 +13,11 @@ function readNewSessionSignals(filePath: string): {
   parentSessionId: string | null;
 } {
   try {
-    const head = fs.readFileSync(filePath, "utf8").slice(0, 8000);
+    const buf = Buffer.alloc(8000);
+    const fd = fs.openSync(filePath, "r");
+    const bytesRead = fs.readSync(fd, buf, 0, 8000, 0);
+    fs.closeSync(fd);
+    const head = buf.toString("utf8", 0, bytesRead);
     const lines = head.split("\n").filter(Boolean);
     let forkedFrom: string | null = null;
     let planContent = false;

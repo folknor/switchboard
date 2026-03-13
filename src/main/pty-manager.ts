@@ -194,7 +194,11 @@ export function registerPtyHandlers(
         if (!isNew) {
           try {
             const jsonlPath = path.join(claudeProjectDir, `${sessionId}.jsonl`);
-            const head = fs.readFileSync(jsonlPath, "utf8").slice(0, 8000);
+            const slugBuf = Buffer.alloc(8000);
+            const slugFd = fs.openSync(jsonlPath, "r");
+            const slugBytes = fs.readSync(slugFd, slugBuf, 0, 8000, 0);
+            fs.closeSync(slugFd);
+            const head = slugBuf.toString("utf8", 0, slugBytes);
             const firstLines = head.split("\n").filter(Boolean);
             for (const line of firstLines) {
               const entry = JSON.parse(line);
