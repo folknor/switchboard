@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
 import log from "electron-log";
+import type { ProjectObj, SessionObj } from "../shared/types";
 import { PROJECTS_DIR } from "./constants";
 import {
   deleteCachedFolder,
@@ -163,25 +164,16 @@ export function _populateCacheFromFilesystem(): void {
 }
 
 /** Build projects response from cached data */
-export function buildProjectsFromCache(
-  showArchived: boolean,
-): Record<string, unknown>[] {
+export function buildProjectsFromCache(showArchived: boolean): ProjectObj[] {
   const metaMap = getAllMeta();
   const cachedRows = getAllCached();
   const global = (getSetting("global") as Record<string, unknown>) || {};
   const hiddenProjects = new Set((global.hiddenProjects as string[]) || []);
 
   // Group by folder
-  const folderMap = new Map<
-    string,
-    {
-      folder: string;
-      projectPath: string | null;
-      sessions: Record<string, unknown>[];
-    }
-  >();
+  const folderMap = new Map<string, ProjectObj>();
   for (const row of cachedRows) {
-    if (hiddenProjects.has(row.projectPath as string)) continue;
+    if (row.projectPath && hiddenProjects.has(row.projectPath)) continue;
     if (!folderMap.has(row.folder)) {
       folderMap.set(row.folder, {
         folder: row.folder,
@@ -190,12 +182,12 @@ export function buildProjectsFromCache(
       });
     }
     const meta = metaMap.get(row.sessionId);
-    const s: Record<string, unknown> = {
+    const s: SessionObj = {
       sessionId: row.sessionId,
-      summary: row.summary,
-      firstPrompt: row.firstPrompt,
-      created: row.created,
-      modified: row.modified,
+      summary: row.summary || "",
+      firstPrompt: row.firstPrompt || "",
+      created: row.created || "",
+      modified: row.modified || "",
       messageCount: row.messageCount,
       projectPath: row.projectPath,
       slug: row.slug || null,
@@ -204,9 +196,7 @@ export function buildProjectsFromCache(
       archived: meta?.archived || 0,
     };
     if (!showArchived && s.archived) continue;
-    (
-      folderMap.get(row.folder) as { sessions: Record<string, unknown>[] }
-    ).sessions.push(s);
+    (folderMap.get(row.folder) as ProjectObj).sessions.push(s);
   }
 
   // Include empty project directories (no sessions yet)
@@ -236,24 +226,20 @@ export function buildProjectsFromCache(
     );
   }
 
-  const projects: Record<string, unknown>[] = [];
+  const projects: ProjectObj[] = [];
   for (const proj of folderMap.values()) {
     proj.sessions.sort(
-      (a: Record<string, unknown>, b: Record<string, unknown>) =>
-        new Date(b.modified as string).getTime() -
-        new Date(a.modified as string).getTime(),
+      (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime(),
     );
     projects.push(proj);
   }
 
   projects.sort((a, b) => {
-    const aSessions = a.sessions as Record<string, unknown>[];
-    const bSessions = b.sessions as Record<string, unknown>[];
     // Empty projects go to the bottom
-    if (aSessions.length === 0 && bSessions.length > 0) return 1;
-    if (bSessions.length === 0 && aSessions.length > 0) return -1;
-    const aDate = (aSessions[0]?.modified as string) || "";
-    const bDate = (bSessions[0]?.modified as string) || "";
+    if (a.sessions.length === 0 && b.sessions.length > 0) return 1;
+    if (b.sessions.length === 0 && a.sessions.length > 0) return -1;
+    const aDate = a.sessions[0]?.modified || "";
+    const bDate = b.sessions[0]?.modified || "";
     return new Date(bDate).getTime() - new Date(aDate).getTime();
   });
 

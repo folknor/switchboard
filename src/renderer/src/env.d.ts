@@ -1,17 +1,22 @@
 /// <reference types="vite/client" />
 
+type PlanInfo = import("../../shared/types").PlanInfo;
+type MemoryInfo = import("../../shared/types").MemoryInfo;
+type ProjectObj = import("../../shared/types").ProjectObj;
+type SearchResult = import("../../shared/types").SearchResult;
+
 interface Window {
   api: {
-    getPlans(): Promise<Record<string, unknown>[]>;
+    getPlans(): Promise<PlanInfo[]>;
     readPlan(filename: string): Promise<{ content: string; filePath: string }>;
     savePlan(
       filePath: string,
       content: string,
     ): Promise<{ ok: boolean; error?: string }>;
     getStats(): Promise<Record<string, unknown>>;
-    getMemories(): Promise<Record<string, unknown>[]>;
+    getMemories(): Promise<MemoryInfo[]>;
     readMemory(filePath: string): Promise<string>;
-    getProjects(showArchived: boolean): Promise<Record<string, unknown>[]>;
+    getProjects(showArchived: boolean): Promise<ProjectObj[]>;
     getActiveSessions(): Promise<string[]>;
     getActiveTerminals(): Promise<{ sessionId: string; projectPath: string }[]>;
     stopSession(id: string): Promise<void>;
@@ -24,7 +29,7 @@ interface Window {
       isNew: boolean,
       sessionOptions?: Record<string, unknown>,
     ): Promise<void>;
-    search(type: string, query: string): Promise<Record<string, unknown>[]>;
+    search(type: string, query: string): Promise<SearchResult[]>;
     readSessionJsonl(sessionId: string): Promise<Record<string, unknown>>;
 
     getSetting(key: string): Promise<unknown>;

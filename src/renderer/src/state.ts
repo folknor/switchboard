@@ -1,10 +1,14 @@
 import type { ITheme } from "@xterm/xterm";
-import { getTerminalTheme } from "./themes";
 
-// biome-ignore lint/suspicious/noExplicitAny: session objects from IPC have dynamic shape
-export type SessionObj = Record<string, any>;
-// biome-ignore lint/suspicious/noExplicitAny: project objects from IPC have dynamic shape
-export type ProjectObj = Record<string, any>;
+export type {
+  MemoryInfo,
+  PlanInfo,
+  ProjectObj,
+  SearchResult,
+  SessionObj,
+} from "../../shared/types";
+
+import { getTerminalTheme } from "./themes";
 
 // --- DOM element references ---
 export const statusBarInfo: HTMLElement | null =
@@ -167,7 +171,7 @@ export let cachedProjects: ProjectObj[] = [];
 export let cachedAllProjects: ProjectObj[] = [];
 export let activePtyIds: Set<string> = new Set();
 export let activeTab: string = "sessions";
-export let cachedPlans: ProjectObj[] = [];
+export let cachedPlans: PlanInfo[] = [];
 export let visibleSessionCount: number = 10;
 export let sessionMaxAgeDays: number = 3;
 
@@ -183,7 +187,7 @@ export function setActivePtyIds(v: Set<string>): void {
 export function setActiveTab(v: string): void {
   activeTab = v;
 }
-export function setCachedPlans(v: ProjectObj[]): void {
+export function setCachedPlans(v: PlanInfo[]): void {
   cachedPlans = v;
 }
 export function setVisibleSessionCount(v: number): void {
@@ -220,8 +224,8 @@ export function setCurrentThemeName(name: string): void {
 }
 
 // --- Memory cache ---
-export let cachedMemories: ProjectObj[] = [];
-export function setCachedMemories(v: ProjectObj[]): void {
+export let cachedMemories: MemoryInfo[] = [];
+export function setCachedMemories(v: MemoryInfo[]): void {
   cachedMemories = v;
 }
 

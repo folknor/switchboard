@@ -5,6 +5,12 @@ import type { BrowserWindow } from "electron";
 import { dialog, shell as electronShell, ipcMain } from "electron";
 import log from "electron-log";
 import type { AppUpdater } from "electron-updater";
+import type {
+  MemoryInfo,
+  PlanInfo,
+  ProjectObj,
+  SearchResult,
+} from "../shared/types";
 import {
   CLAUDE_DIR,
   PLANS_DIR,
@@ -177,7 +183,7 @@ export function registerIpcHandlers(
     (
       _event: Electron.IpcMainInvokeEvent,
       showArchived: boolean,
-    ): Record<string, unknown>[] => {
+    ): ProjectObj[] => {
       try {
         const needsPopulate = !(isCachePopulated() && isSearchIndexPopulated());
 
@@ -204,65 +210,61 @@ export function registerIpcHandlers(
   );
 
   // --- IPC: get-plans ---
-  ipcMain.handle(
-    "get-plans",
-    (): { filename: string; title: string; modified: string }[] => {
-      try {
-        if (!fs.existsSync(PLANS_DIR)) return [];
-        const files = fs
-          .readdirSync(PLANS_DIR)
-          .filter((f: string) => f.endsWith(".md"));
-        const plans: { filename: string; title: string; modified: string }[] =
-          [];
-        for (const file of files) {
-          const filePath = path.join(PLANS_DIR, file);
-          try {
-            const stat = fs.statSync(filePath);
-            const content = fs.readFileSync(filePath, "utf8");
-            const firstLine = content.split("\n").find((l: string) => l.trim());
-            const title = firstLine?.startsWith("# ")
-              ? firstLine.slice(2).trim()
-              : file.replace(/\.md$/, "");
-            plans.push({
-              filename: file,
-              title,
-              modified: stat.mtime.toISOString(),
-            });
-          } catch (e: unknown) {
-            log.warn(
-              `[get-plans] failed to read plan file=${file}:`,
-              (e as Error).message,
-            );
-          }
-        }
-        plans.sort(
-          (a, b) =>
-            new Date(b.modified).getTime() - new Date(a.modified).getTime(),
-        );
-
-        // Index plans for FTS
+  ipcMain.handle("get-plans", (): PlanInfo[] => {
+    try {
+      if (!fs.existsSync(PLANS_DIR)) return [];
+      const files = fs
+        .readdirSync(PLANS_DIR)
+        .filter((f: string) => f.endsWith(".md"));
+      const plans: PlanInfo[] = [];
+      for (const file of files) {
+        const filePath = path.join(PLANS_DIR, file);
         try {
-          deleteSearchType("plan");
-          upsertSearchEntries(
-            plans.map((p) => ({
-              id: p.filename,
-              type: "plan",
-              folder: null,
-              title: p.title,
-              body: fs.readFileSync(path.join(PLANS_DIR, p.filename), "utf8"),
-            })),
-          );
+          const stat = fs.statSync(filePath);
+          const content = fs.readFileSync(filePath, "utf8");
+          const firstLine = content.split("\n").find((l: string) => l.trim());
+          const title = firstLine?.startsWith("# ")
+            ? firstLine.slice(2).trim()
+            : file.replace(/\.md$/, "");
+          plans.push({
+            filename: file,
+            title,
+            modified: stat.mtime.toISOString(),
+          });
         } catch (e: unknown) {
-          log.warn("[get-plans] FTS indexing failed:", (e as Error).message);
+          log.warn(
+            `[get-plans] failed to read plan file=${file}:`,
+            (e as Error).message,
+          );
         }
-
-        return plans;
-      } catch (e: unknown) {
-        log.error("[get-plans] failed:", (e as Error).message);
-        return [];
       }
-    },
-  );
+      plans.sort(
+        (a, b) =>
+          new Date(b.modified).getTime() - new Date(a.modified).getTime(),
+      );
+
+      // Index plans for FTS
+      try {
+        deleteSearchType("plan");
+        upsertSearchEntries(
+          plans.map((p) => ({
+            id: p.filename,
+            type: "plan",
+            folder: null,
+            title: p.title,
+            body: fs.readFileSync(path.join(PLANS_DIR, p.filename), "utf8"),
+          })),
+        );
+      } catch (e: unknown) {
+        log.warn("[get-plans] FTS indexing failed:", (e as Error).message);
+      }
+
+      return plans;
+    } catch (e: unknown) {
+      log.error("[get-plans] failed:", (e as Error).message);
+      return [];
+    }
+  });
 
   // --- IPC: read-plan ---
   ipcMain.handle(
@@ -319,109 +321,100 @@ export function registerIpcHandlers(
   });
 
   // --- IPC: get-memories ---
-  ipcMain.handle(
-    "get-memories",
-    (): {
+  ipcMain.handle("get-memories", (): MemoryInfo[] => {
+    const memories: {
       type: string;
       label: string;
       filename: string;
       filePath: string;
       modified: string;
-    }[] => {
-      const memories: {
-        type: string;
-        label: string;
-        filename: string;
-        filePath: string;
-        modified: string;
-      }[] = [];
-      try {
-        // Global CLAUDE.md
-        const globalClaude = path.join(CLAUDE_DIR, "CLAUDE.md");
-        if (fs.existsSync(globalClaude)) {
-          const content = fs.readFileSync(globalClaude, "utf8").trim();
-          if (content) {
-            const stat = fs.statSync(globalClaude);
-            memories.push({
-              type: "global",
-              label: "Global",
-              filename: "CLAUDE.md",
-              filePath: globalClaude,
-              modified: stat.mtime.toISOString(),
-            });
-          }
+    }[] = [];
+    try {
+      // Global CLAUDE.md
+      const globalClaude = path.join(CLAUDE_DIR, "CLAUDE.md");
+      if (fs.existsSync(globalClaude)) {
+        const content = fs.readFileSync(globalClaude, "utf8").trim();
+        if (content) {
+          const stat = fs.statSync(globalClaude);
+          memories.push({
+            type: "global",
+            label: "Global",
+            filename: "CLAUDE.md",
+            filePath: globalClaude,
+            modified: stat.mtime.toISOString(),
+          });
         }
+      }
 
-        // Per-project CLAUDE.md and memory/MEMORY.md
-        if (fs.existsSync(PROJECTS_DIR)) {
-          const folders = fs
-            .readdirSync(PROJECTS_DIR, { withFileTypes: true })
-            .filter((d) => d.isDirectory() && d.name !== ".git")
-            .map((d) => d.name);
+      // Per-project CLAUDE.md and memory/MEMORY.md
+      if (fs.existsSync(PROJECTS_DIR)) {
+        const folders = fs
+          .readdirSync(PROJECTS_DIR, { withFileTypes: true })
+          .filter((d) => d.isDirectory() && d.name !== ".git")
+          .map((d) => d.name);
 
-          for (const folder of folders) {
-            const shortPath = folderToShortPath(folder);
-            const folderPath = path.join(PROJECTS_DIR, folder);
+        for (const folder of folders) {
+          const shortPath = folderToShortPath(folder);
+          const folderPath = path.join(PROJECTS_DIR, folder);
 
-            // CLAUDE.md in project folder
-            const claudeMd = path.join(folderPath, "CLAUDE.md");
-            if (fs.existsSync(claudeMd)) {
-              const content = fs.readFileSync(claudeMd, "utf8").trim();
-              if (content) {
-                const stat = fs.statSync(claudeMd);
-                memories.push({
-                  type: "project",
-                  label: shortPath,
-                  filename: "CLAUDE.md",
-                  filePath: claudeMd,
-                  modified: stat.mtime.toISOString(),
-                });
-              }
+          // CLAUDE.md in project folder
+          const claudeMd = path.join(folderPath, "CLAUDE.md");
+          if (fs.existsSync(claudeMd)) {
+            const content = fs.readFileSync(claudeMd, "utf8").trim();
+            if (content) {
+              const stat = fs.statSync(claudeMd);
+              memories.push({
+                type: "project",
+                label: shortPath,
+                filename: "CLAUDE.md",
+                filePath: claudeMd,
+                modified: stat.mtime.toISOString(),
+              });
             }
+          }
 
-            // memory/MEMORY.md in project folder
-            const memoryMd = path.join(folderPath, "memory", "MEMORY.md");
-            if (fs.existsSync(memoryMd)) {
-              const content = fs.readFileSync(memoryMd, "utf8").trim();
-              if (content) {
-                const stat = fs.statSync(memoryMd);
-                memories.push({
-                  type: "auto",
-                  label: shortPath,
-                  filename: "MEMORY.md",
-                  filePath: memoryMd,
-                  modified: stat.mtime.toISOString(),
-                });
-              }
+          // memory/MEMORY.md in project folder
+          const memoryMd = path.join(folderPath, "memory", "MEMORY.md");
+          if (fs.existsSync(memoryMd)) {
+            const content = fs.readFileSync(memoryMd, "utf8").trim();
+            if (content) {
+              const stat = fs.statSync(memoryMd);
+              memories.push({
+                type: "auto",
+                label: shortPath,
+                filename: "MEMORY.md",
+                filePath: memoryMd,
+                modified: stat.mtime.toISOString(),
+              });
             }
           }
         }
-      } catch (e: unknown) {
-        log.error(
-          "[get-memories] failed to enumerate memories:",
-          (e as Error).message,
-        );
       }
+    } catch (e: unknown) {
+      log.error(
+        "[get-memories] failed to enumerate memories:",
+        (e as Error).message,
+      );
+    }
 
-      // Index memories for FTS
-      try {
-        deleteSearchType("memory");
-        upsertSearchEntries(
-          memories.map((m) => ({
-            id: m.filePath,
-            type: "memory",
-            folder: null,
-            title: `${m.label} ${m.filename}`,
-            body: fs.readFileSync(m.filePath, "utf8"),
-          })),
-        );
-      } catch (e: unknown) {
-        log.warn("[get-memories] FTS indexing failed:", (e as Error).message);
-      }
+    // Index memories for FTS
+    try {
+      deleteSearchType("memory");
+      upsertSearchEntries(
+        memories.map((m) => ({
+          id: m.filePath,
+          type: "memory",
+          folder: null,
+          title: `${m.label} ${m.filename}`,
+          body: fs.readFileSync(m.filePath, "utf8"),
+        })),
+      );
+    } catch (e: unknown) {
+      log.warn("[get-memories] FTS indexing failed:", (e as Error).message);
+    }
 
-      return memories;
-    },
-  );
+    return memories;
+  });
 
   // --- IPC: read-memory ---
   ipcMain.handle(
@@ -451,7 +444,7 @@ export function registerIpcHandlers(
       _event: Electron.IpcMainInvokeEvent,
       type: string,
       query: string,
-    ): { id: string; snippet: string }[] => searchByType(type, query, 50),
+    ): SearchResult[] => searchByType(type, query, 50),
   );
 
   // --- IPC: read-session-jsonl ---

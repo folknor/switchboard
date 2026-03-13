@@ -217,9 +217,7 @@ searchInput.addEventListener("input", () => {
     try {
       if (activeTab === "sessions") {
         const results = await window.api.search("session", query);
-        const matchIds: Set<string> = new Set(
-          results.map((r: Record<string, unknown>) => r.id as string),
-        );
+        const matchIds: Set<string> = new Set(results.map((r) => r.id));
         // Always search all projects (including archived) so no results are hidden
         const filtered: ProjectObj[] = cachedAllProjects
           .map((p: ProjectObj) => ({
@@ -232,17 +230,13 @@ searchInput.addEventListener("input", () => {
         doRenderAndRebind(filtered, true);
       } else if (activeTab === "plans") {
         const results = await window.api.search("plan", query);
-        const matchIds: Set<string> = new Set(
-          results.map((r: Record<string, unknown>) => r.id as string),
-        );
+        const matchIds: Set<string> = new Set(results.map((r) => r.id));
         renderPlans(
           cachedPlans.filter((p: ProjectObj) => matchIds.has(p.filename)),
         );
       } else if (activeTab === "memory") {
         const results = await window.api.search("memory", query);
-        const matchIds: Set<string> = new Set(
-          results.map((r: Record<string, unknown>) => r.id as string),
-        );
+        const matchIds: Set<string> = new Set(results.map((r) => r.id));
         renderMemories(
           cachedMemories.filter((m: ProjectObj) => matchIds.has(m.filePath)),
         );
