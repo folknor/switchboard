@@ -1,5 +1,5 @@
-import { resolve } from 'node:path';
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
+import { resolve } from "node:path";
+import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 
 export default defineConfig({
   main: {
@@ -7,8 +7,8 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve('src/main/index.ts'),
-          'workers/scan-projects': resolve('src/main/workers/scan-projects.ts'),
+          index: resolve("src/main/index.ts"),
+          "workers/scan-projects": resolve("src/main/workers/scan-projects.ts"),
         },
       },
     },
@@ -18,7 +18,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve('src/preload/index.ts'),
+          index: resolve("src/preload/index.ts"),
         },
       },
     },
@@ -26,13 +26,13 @@ export default defineConfig({
   renderer: {
     resolve: {
       alias: {
-        '@': resolve('src/renderer/src'),
+        "@": resolve("src/renderer/src"),
       },
     },
     build: {
       rollupOptions: {
         input: {
-          index: resolve('src/renderer/index.html'),
+          index: resolve("src/renderer/index.html"),
         },
       },
     },

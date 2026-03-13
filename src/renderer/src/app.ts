@@ -1,78 +1,88 @@
-import '@xterm/xterm/css/xterm.css';
-import './style.css';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
-import morphdom from 'morphdom';
-import { createPlanEditor, CMEditorView, CMEditorState } from './codemirror-setup';
+import "@xterm/xterm/css/xterm.css";
+import "./style.css";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import morphdom from "morphdom";
+import {
+  createPlanEditor,
+  CMEditorView,
+  CMEditorState,
+} from "./codemirror-setup";
 
-const statusBarInfo = document.getElementById('status-bar-info');
-const statusBarActivity = document.getElementById('status-bar-activity');
-const terminalsEl = document.getElementById('terminals');
-const sidebarContent = document.getElementById('sidebar-content');
-const plansContent = document.getElementById('plans-content');
-const placeholder = document.getElementById('placeholder');
-const archiveToggle = document.getElementById('archive-toggle');
-const starToggle = document.getElementById('star-toggle');
-const searchInput = document.getElementById('search-input');
-const terminalHeader = document.getElementById('terminal-header');
-const terminalHeaderName = document.getElementById('terminal-header-name');
-const terminalHeaderId = document.getElementById('terminal-header-id');
-const terminalHeaderStatus = document.getElementById('terminal-header-status');
-const terminalStopBtn = document.getElementById('terminal-stop-btn');
-const terminalRestartBtn = document.getElementById('terminal-restart-btn');
-const runningToggle = document.getElementById('running-toggle');
-const todayToggle = document.getElementById('today-toggle');
-const planViewer = document.getElementById('plan-viewer');
-const planViewerTitle = document.getElementById('plan-viewer-title');
-const planViewerFilepath = document.getElementById('plan-viewer-filepath');
-const planViewerEditorEl = document.getElementById('plan-viewer-editor');
-const planCopyPathBtn = document.getElementById('plan-copy-path-btn');
-const planCopyContentBtn = document.getElementById('plan-copy-content-btn');
-const planSaveBtn = document.getElementById('plan-save-btn');
+const statusBarInfo = document.getElementById("status-bar-info");
+const statusBarActivity = document.getElementById("status-bar-activity");
+const terminalsEl = document.getElementById("terminals");
+const sidebarContent = document.getElementById("sidebar-content");
+const plansContent = document.getElementById("plans-content");
+const placeholder = document.getElementById("placeholder");
+const archiveToggle = document.getElementById("archive-toggle");
+const starToggle = document.getElementById("star-toggle");
+const searchInput = document.getElementById("search-input");
+const terminalHeader = document.getElementById("terminal-header");
+const terminalHeaderName = document.getElementById("terminal-header-name");
+const terminalHeaderId = document.getElementById("terminal-header-id");
+const terminalHeaderStatus = document.getElementById("terminal-header-status");
+const terminalStopBtn = document.getElementById("terminal-stop-btn");
+const terminalRestartBtn = document.getElementById("terminal-restart-btn");
+const runningToggle = document.getElementById("running-toggle");
+const todayToggle = document.getElementById("today-toggle");
+const planViewer = document.getElementById("plan-viewer");
+const planViewerTitle = document.getElementById("plan-viewer-title");
+const planViewerFilepath = document.getElementById("plan-viewer-filepath");
+const planViewerEditorEl = document.getElementById("plan-viewer-editor");
+const planCopyPathBtn = document.getElementById("plan-copy-path-btn");
+const planCopyContentBtn = document.getElementById("plan-copy-content-btn");
+const planSaveBtn = document.getElementById("plan-save-btn");
 
-let currentPlanContent = '';
-let currentPlanFilePath = '';
-let currentPlanFilename = '';
+let currentPlanContent = "";
+let currentPlanFilePath = "";
+let currentPlanFilename = "";
 let planEditorView = null;
-const loadingStatus = document.getElementById('loading-status');
-const sessionFilters = document.getElementById('session-filters');
-const searchBar = document.getElementById('search-bar');
-const statsContent = document.getElementById('stats-content');
-const memoryContent = document.getElementById('memory-content');
-const statsViewer = document.getElementById('stats-viewer');
-const statsViewerBody = document.getElementById('stats-viewer-body');
-const memoryViewer = document.getElementById('memory-viewer');
-const memoryViewerTitle = document.getElementById('memory-viewer-title');
-const memoryViewerFilename = document.getElementById('memory-viewer-filename');
-const memoryViewerBody = document.getElementById('memory-viewer-body');
-const terminalArea = document.getElementById('terminal-area');
-const settingsViewer = document.getElementById('settings-viewer');
-const settingsViewerTitle = document.getElementById('settings-viewer-title');
-const settingsViewerBody = document.getElementById('settings-viewer-body');
-const globalSettingsBtn = document.getElementById('global-settings-btn');
-const addProjectBtn = document.getElementById('add-project-btn');
-const jsonlViewer = document.getElementById('jsonl-viewer');
-const jsonlViewerTitle = document.getElementById('jsonl-viewer-title');
-const jsonlViewerSessionId = document.getElementById('jsonl-viewer-session-id');
-const jsonlViewerBody = document.getElementById('jsonl-viewer-body');
+const loadingStatus = document.getElementById("loading-status");
+const sessionFilters = document.getElementById("session-filters");
+const searchBar = document.getElementById("search-bar");
+const statsContent = document.getElementById("stats-content");
+const memoryContent = document.getElementById("memory-content");
+const statsViewer = document.getElementById("stats-viewer");
+const statsViewerBody = document.getElementById("stats-viewer-body");
+const memoryViewer = document.getElementById("memory-viewer");
+const memoryViewerTitle = document.getElementById("memory-viewer-title");
+const memoryViewerFilename = document.getElementById("memory-viewer-filename");
+const memoryViewerBody = document.getElementById("memory-viewer-body");
+const terminalArea = document.getElementById("terminal-area");
+const settingsViewer = document.getElementById("settings-viewer");
+const settingsViewerTitle = document.getElementById("settings-viewer-title");
+const settingsViewerBody = document.getElementById("settings-viewer-body");
+const globalSettingsBtn = document.getElementById("global-settings-btn");
+const addProjectBtn = document.getElementById("add-project-btn");
+const jsonlViewer = document.getElementById("jsonl-viewer");
+const jsonlViewerTitle = document.getElementById("jsonl-viewer-title");
+const jsonlViewerSessionId = document.getElementById("jsonl-viewer-session-id");
+const jsonlViewerBody = document.getElementById("jsonl-viewer-body");
 
 // Map<sessionId, { terminal, element, fitAddon, session, closed }>
 const openSessions = new Map();
-let activeSessionId = sessionStorage.getItem('activeSessionId') || null;
+let activeSessionId = sessionStorage.getItem("activeSessionId") || null;
 function setActiveSession(id) {
   activeSessionId = id;
-  if (id) sessionStorage.setItem('activeSessionId', id);
-  else sessionStorage.removeItem('activeSessionId');
+  if (id) sessionStorage.setItem("activeSessionId", id);
+  else sessionStorage.removeItem("activeSessionId");
 }
 // Persist slug group expand state across reloads
 function getExpandedSlugs() {
-  try { return new Set(JSON.parse(sessionStorage.getItem('expandedSlugs') || '[]')); } catch { return new Set(); }
+  try {
+    return new Set(JSON.parse(sessionStorage.getItem("expandedSlugs") || "[]"));
+  } catch {
+    return new Set();
+  }
 }
 function saveExpandedSlugs() {
   const expanded = [];
-  document.querySelectorAll('.slug-group:not(.collapsed)').forEach(g => { if (g.id) expanded.push(g.id); });
-  sessionStorage.setItem('expandedSlugs', JSON.stringify(expanded));
+  document.querySelectorAll(".slug-group:not(.collapsed)").forEach((g) => {
+    if (g.id) expanded.push(g.id);
+  });
+  sessionStorage.setItem("expandedSlugs", JSON.stringify(expanded));
 }
 let showArchived = false;
 let showStarredOnly = false;
@@ -81,7 +91,7 @@ let showTodayOnly = false;
 let cachedProjects = [];
 let cachedAllProjects = [];
 let activePtyIds = new Set();
-let activeTab = 'sessions';
+let activeTab = "sessions";
 let cachedPlans = [];
 let visibleSessionCount = 10;
 let sessionMaxAgeDays = 3;
@@ -101,64 +111,189 @@ function markUnread(sessionId, data) {
   if (unreadNoiseRe.test(data)) return;
   if (!unreadSessions.has(sessionId)) {
     unreadSessions.add(sessionId);
-    const item = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
-    if (item) item.classList.add('has-unread');
+    const item = document.querySelector(
+      `.session-item[data-session-id="${sessionId}"]`,
+    );
+    if (item) item.classList.add("has-unread");
   }
 }
 
 function clearUnread(sessionId) {
   unreadSessions.delete(sessionId);
-  const item = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
-  if (item) item.classList.remove('has-unread');
+  const item = document.querySelector(
+    `.session-item[data-session-id="${sessionId}"]`,
+  );
+  if (item) item.classList.remove("has-unread");
 }
 
 // --- Terminal themes ---
 const TERMINAL_THEMES = {
   switchboard: {
-    label: 'Switchboard',
-    background: '#1a1a2e', foreground: '#e0e0e0', cursor: '#e94560', selectionBackground: '#3a3a5e',
-    black: '#1a1a2e', red: '#e94560', green: '#0dff00', yellow: '#f5a623', blue: '#7b68ee', magenta: '#c678dd', cyan: '#56b6c2', white: '#c5c8c6',
-    brightBlack: '#555568', brightRed: '#ff6b81', brightGreen: '#69ff69', brightYellow: '#ffd93d', brightBlue: '#8fa8ff', brightMagenta: '#d19afc', brightCyan: '#7ee8e8', brightWhite: '#eaeaea',
+    label: "Switchboard",
+    background: "#1a1a2e",
+    foreground: "#e0e0e0",
+    cursor: "#e94560",
+    selectionBackground: "#3a3a5e",
+    black: "#1a1a2e",
+    red: "#e94560",
+    green: "#0dff00",
+    yellow: "#f5a623",
+    blue: "#7b68ee",
+    magenta: "#c678dd",
+    cyan: "#56b6c2",
+    white: "#c5c8c6",
+    brightBlack: "#555568",
+    brightRed: "#ff6b81",
+    brightGreen: "#69ff69",
+    brightYellow: "#ffd93d",
+    brightBlue: "#8fa8ff",
+    brightMagenta: "#d19afc",
+    brightCyan: "#7ee8e8",
+    brightWhite: "#eaeaea",
   },
   ghostty: {
-    label: 'Ghostty',
-    background: '#292c33', foreground: '#ffffff', cursor: '#ffffff', cursorAccent: '#363a43', selectionBackground: '#ffffff', selectionForeground: '#292c33',
-    black: '#1d1f21', red: '#bf6b69', green: '#b7bd73', yellow: '#e9c880', blue: '#88a1bb', magenta: '#ad95b8', cyan: '#95bdb7', white: '#c5c8c6',
-    brightBlack: '#666666', brightRed: '#c55757', brightGreen: '#bcc95f', brightYellow: '#e1c65e', brightBlue: '#83a5d6', brightMagenta: '#bc99d4', brightCyan: '#83beb1', brightWhite: '#eaeaea',
+    label: "Ghostty",
+    background: "#292c33",
+    foreground: "#ffffff",
+    cursor: "#ffffff",
+    cursorAccent: "#363a43",
+    selectionBackground: "#ffffff",
+    selectionForeground: "#292c33",
+    black: "#1d1f21",
+    red: "#bf6b69",
+    green: "#b7bd73",
+    yellow: "#e9c880",
+    blue: "#88a1bb",
+    magenta: "#ad95b8",
+    cyan: "#95bdb7",
+    white: "#c5c8c6",
+    brightBlack: "#666666",
+    brightRed: "#c55757",
+    brightGreen: "#bcc95f",
+    brightYellow: "#e1c65e",
+    brightBlue: "#83a5d6",
+    brightMagenta: "#bc99d4",
+    brightCyan: "#83beb1",
+    brightWhite: "#eaeaea",
   },
   tokyoNight: {
-    label: 'Tokyo Night',
-    background: '#1a1b26', foreground: '#c0caf5', cursor: '#c0caf5', selectionBackground: '#33467c',
-    black: '#15161e', red: '#f7768e', green: '#9ece6a', yellow: '#e0af68', blue: '#7aa2f7', magenta: '#bb9af7', cyan: '#7dcfff', white: '#a9b1d6',
-    brightBlack: '#414868', brightRed: '#f7768e', brightGreen: '#9ece6a', brightYellow: '#e0af68', brightBlue: '#7aa2f7', brightMagenta: '#bb9af7', brightCyan: '#7dcfff', brightWhite: '#c0caf5',
+    label: "Tokyo Night",
+    background: "#1a1b26",
+    foreground: "#c0caf5",
+    cursor: "#c0caf5",
+    selectionBackground: "#33467c",
+    black: "#15161e",
+    red: "#f7768e",
+    green: "#9ece6a",
+    yellow: "#e0af68",
+    blue: "#7aa2f7",
+    magenta: "#bb9af7",
+    cyan: "#7dcfff",
+    white: "#a9b1d6",
+    brightBlack: "#414868",
+    brightRed: "#f7768e",
+    brightGreen: "#9ece6a",
+    brightYellow: "#e0af68",
+    brightBlue: "#7aa2f7",
+    brightMagenta: "#bb9af7",
+    brightCyan: "#7dcfff",
+    brightWhite: "#c0caf5",
   },
   catppuccinMocha: {
-    label: 'Catppuccin Mocha',
-    background: '#1e1e2e', foreground: '#cdd6f4', cursor: '#f5e0dc', selectionBackground: '#45475a',
-    black: '#45475a', red: '#f38ba8', green: '#a6e3a1', yellow: '#f9e2af', blue: '#89b4fa', magenta: '#f5c2e7', cyan: '#94e2d5', white: '#bac2de',
-    brightBlack: '#585b70', brightRed: '#f38ba8', brightGreen: '#a6e3a1', brightYellow: '#f9e2af', brightBlue: '#89b4fa', brightMagenta: '#f5c2e7', brightCyan: '#94e2d5', brightWhite: '#a6adc8',
+    label: "Catppuccin Mocha",
+    background: "#1e1e2e",
+    foreground: "#cdd6f4",
+    cursor: "#f5e0dc",
+    selectionBackground: "#45475a",
+    black: "#45475a",
+    red: "#f38ba8",
+    green: "#a6e3a1",
+    yellow: "#f9e2af",
+    blue: "#89b4fa",
+    magenta: "#f5c2e7",
+    cyan: "#94e2d5",
+    white: "#bac2de",
+    brightBlack: "#585b70",
+    brightRed: "#f38ba8",
+    brightGreen: "#a6e3a1",
+    brightYellow: "#f9e2af",
+    brightBlue: "#89b4fa",
+    brightMagenta: "#f5c2e7",
+    brightCyan: "#94e2d5",
+    brightWhite: "#a6adc8",
   },
   dracula: {
-    label: 'Dracula',
-    background: '#282a36', foreground: '#f8f8f2', cursor: '#f8f8f2', selectionBackground: '#44475a',
-    black: '#21222c', red: '#ff5555', green: '#50fa7b', yellow: '#f1fa8c', blue: '#bd93f9', magenta: '#ff79c6', cyan: '#8be9fd', white: '#f8f8f2',
-    brightBlack: '#6272a4', brightRed: '#ff6e6e', brightGreen: '#69ff94', brightYellow: '#ffffa5', brightBlue: '#d6acff', brightMagenta: '#ff92df', brightCyan: '#a4ffff', brightWhite: '#ffffff',
+    label: "Dracula",
+    background: "#282a36",
+    foreground: "#f8f8f2",
+    cursor: "#f8f8f2",
+    selectionBackground: "#44475a",
+    black: "#21222c",
+    red: "#ff5555",
+    green: "#50fa7b",
+    yellow: "#f1fa8c",
+    blue: "#bd93f9",
+    magenta: "#ff79c6",
+    cyan: "#8be9fd",
+    white: "#f8f8f2",
+    brightBlack: "#6272a4",
+    brightRed: "#ff6e6e",
+    brightGreen: "#69ff94",
+    brightYellow: "#ffffa5",
+    brightBlue: "#d6acff",
+    brightMagenta: "#ff92df",
+    brightCyan: "#a4ffff",
+    brightWhite: "#ffffff",
   },
   nord: {
-    label: 'Nord',
-    background: '#2e3440', foreground: '#d8dee9', cursor: '#d8dee9', selectionBackground: '#434c5e',
-    black: '#3b4252', red: '#bf616a', green: '#a3be8c', yellow: '#ebcb8b', blue: '#81a1c1', magenta: '#b48ead', cyan: '#88c0d0', white: '#e5e9f0',
-    brightBlack: '#4c566a', brightRed: '#bf616a', brightGreen: '#a3be8c', brightYellow: '#ebcb8b', brightBlue: '#81a1c1', brightMagenta: '#b48ead', brightCyan: '#8fbcbb', brightWhite: '#eceff4',
+    label: "Nord",
+    background: "#2e3440",
+    foreground: "#d8dee9",
+    cursor: "#d8dee9",
+    selectionBackground: "#434c5e",
+    black: "#3b4252",
+    red: "#bf616a",
+    green: "#a3be8c",
+    yellow: "#ebcb8b",
+    blue: "#81a1c1",
+    magenta: "#b48ead",
+    cyan: "#88c0d0",
+    white: "#e5e9f0",
+    brightBlack: "#4c566a",
+    brightRed: "#bf616a",
+    brightGreen: "#a3be8c",
+    brightYellow: "#ebcb8b",
+    brightBlue: "#81a1c1",
+    brightMagenta: "#b48ead",
+    brightCyan: "#8fbcbb",
+    brightWhite: "#eceff4",
   },
   solarizedDark: {
-    label: 'Solarized Dark',
-    background: '#002b36', foreground: '#839496', cursor: '#839496', selectionBackground: '#073642',
-    black: '#073642', red: '#dc322f', green: '#859900', yellow: '#b58900', blue: '#268bd2', magenta: '#d33682', cyan: '#2aa198', white: '#eee8d5',
-    brightBlack: '#002b36', brightRed: '#cb4b16', brightGreen: '#586e75', brightYellow: '#657b83', brightBlue: '#839496', brightMagenta: '#6c71c4', brightCyan: '#93a1a1', brightWhite: '#fdf6e3',
+    label: "Solarized Dark",
+    background: "#002b36",
+    foreground: "#839496",
+    cursor: "#839496",
+    selectionBackground: "#073642",
+    black: "#073642",
+    red: "#dc322f",
+    green: "#859900",
+    yellow: "#b58900",
+    blue: "#268bd2",
+    magenta: "#d33682",
+    cyan: "#2aa198",
+    white: "#eee8d5",
+    brightBlack: "#002b36",
+    brightRed: "#cb4b16",
+    brightGreen: "#586e75",
+    brightYellow: "#657b83",
+    brightBlue: "#839496",
+    brightMagenta: "#6c71c4",
+    brightCyan: "#93a1a1",
+    brightWhite: "#fdf6e3",
   },
 };
 
-let currentThemeName = 'switchboard';
+let currentThemeName = "switchboard";
 function getTerminalTheme() {
   return TERMINAL_THEMES[currentThemeName] || TERMINAL_THEMES.switchboard;
 }
@@ -170,9 +305,15 @@ function attachTerminalKeyHandler(terminal, getSessionId) {
     // Shift+Enter → kitty protocol: CSI 13 ; 2 u
     // Must return false for ALL event types (keydown, keypress, keyup) to prevent
     // the keypress handler from also sending \r through onData
-    if (e.key === 'Enter' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      if (e.type === 'keydown') {
-        window.api.sendInput(getSessionId(), '\x1b[13;2u');
+    if (
+      e.key === "Enter" &&
+      e.shiftKey &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      !e.metaKey
+    ) {
+      if (e.type === "keydown") {
+        window.api.sendInput(getSessionId(), "\x1b[13;2u");
       }
       return false;
     }
@@ -182,12 +323,12 @@ function attachTerminalKeyHandler(terminal, getSessionId) {
 
 // --- IPC listeners from main process ---
 // Synchronized output markers — TUI repaints, not meaningful content
-const ESC_SYNC_START = '\x1b[?2026h';
-const ESC_SYNC_END = '\x1b[?2026l';
+const ESC_SYNC_START = "\x1b[?2026h";
+const ESC_SYNC_END = "\x1b[?2026l";
 
 // Terminal escape sequences
-const ESC_SCREEN_CLEAR = '\x1b[2J';
-const ESC_ALT_SCREEN_ON = '\x1b[?1049h';
+const ESC_SCREEN_CLEAR = "\x1b[2J";
+const ESC_ALT_SCREEN_ON = "\x1b[?1049h";
 
 // Scroll-to-bottom window: activated by resize or large redraws,
 // then write callbacks keep scrolling until the window expires.
@@ -198,10 +339,16 @@ window.api.onTerminalData((sessionId, data) => {
   if (entry) {
     // Detect full redraws and activate scroll window (same approach as resize)
     // Only scan for escape sequences in chunks that contain ESC[
-    if (sessionId === activeSessionId && data.length > 3 && data.includes('\x1b[')) {
+    if (
+      sessionId === activeSessionId &&
+      data.length > 3 &&
+      data.includes("\x1b[")
+    ) {
       if (data.includes(ESC_SCREEN_CLEAR) || data.includes(ESC_ALT_SCREEN_ON)) {
         clearTimeout(redrawScrollActive);
-        redrawScrollActive = setTimeout(() => { redrawScrollActive = null; }, 1000);
+        redrawScrollActive = setTimeout(() => {
+          redrawScrollActive = null;
+        }, 1000);
       }
     }
 
@@ -211,17 +358,22 @@ window.api.onTerminalData((sessionId, data) => {
         setTimeout(() => entry.terminal.scrollToBottom(), 50);
         if (resizeScrollActive !== null) {
           clearTimeout(resizeScrollActive);
-          resizeScrollActive = setTimeout(() => { resizeScrollActive = null; }, 300);
+          resizeScrollActive = setTimeout(() => {
+            resizeScrollActive = null;
+          }, 300);
         }
         if (redrawScrollActive !== null) {
           clearTimeout(redrawScrollActive);
-          redrawScrollActive = setTimeout(() => { redrawScrollActive = null; }, 1000);
+          redrawScrollActive = setTimeout(() => {
+            redrawScrollActive = null;
+          }, 1000);
         }
       }
     });
   }
   // Don't mark activity for synchronized output (TUI repaints)
-  const isSyncRedraw = data.startsWith(ESC_SYNC_START) && data.endsWith(ESC_SYNC_END);
+  const isSyncRedraw =
+    data.startsWith(ESC_SYNC_START) && data.endsWith(ESC_SYNC_END);
   if (!isSyncRedraw) {
     if (!unreadNoiseRe.test(data)) lastActivityTime.set(sessionId, new Date());
     markUnread(sessionId, data);
@@ -240,14 +392,16 @@ window.api.onSessionDetected((tempId, realId) => {
   openSessions.set(realId, entry);
 
   terminalHeaderId.textContent = realId;
-  terminalHeaderName.textContent = 'New session';
+  terminalHeaderName.textContent = "New session";
 
   // Refresh sidebar to show the new session, then select it
   loadProjects().then(() => {
     const item = document.querySelector(`[data-session-id="${realId}"]`);
     if (item) {
-      document.querySelectorAll('.session-item.active').forEach(el => el.classList.remove('active'));
-      item.classList.add('active');
+      document
+        .querySelectorAll(".session-item.active")
+        .forEach((el) => el.classList.remove("active"));
+      item.classList.add("active");
     }
   });
   pollActiveSessions();
@@ -273,9 +427,11 @@ window.api.onSessionForked((oldId, newId) => {
   loadProjects().then(() => {
     const item = document.querySelector(`[data-session-id="${newId}"]`);
     if (item) {
-      document.querySelectorAll('.session-item.active').forEach(el => el.classList.remove('active'));
-      item.classList.add('active');
-      const summary = item.querySelector('.session-summary');
+      document
+        .querySelectorAll(".session-item.active")
+        .forEach((el) => el.classList.remove("active"));
+      item.classList.add("active");
+      const summary = item.querySelector(".session-summary");
       if (summary) terminalHeaderName.textContent = summary.textContent;
     }
   });
@@ -298,16 +454,16 @@ window.api.onProcessExited((sessionId, exitCode) => {
   }
   if (activeSessionId === sessionId) {
     setActiveSession(null);
-    terminalHeader.style.display = 'none';
-    placeholder.style.display = '';
+    terminalHeader.style.display = "none";
+    placeholder.style.display = "";
   }
 
   // Plain terminal sessions: remove from sidebar entirely (ephemeral)
-  if (session?.type === 'terminal') {
+  if (session?.type === "terminal") {
     pendingSessions.delete(sessionId);
     for (const projList of [cachedProjects, cachedAllProjects]) {
       for (const proj of projList) {
-        proj.sessions = proj.sessions.filter(s => s.sessionId !== sessionId);
+        proj.sessions = proj.sessions.filter((s) => s.sessionId !== sessionId);
       }
     }
     sessionMap.delete(sessionId);
@@ -322,7 +478,7 @@ window.api.onProcessExited((sessionId, exitCode) => {
     // Remove from cached project data
     for (const projList of [cachedProjects, cachedAllProjects]) {
       for (const proj of projList) {
-        proj.sessions = proj.sessions.filter(s => s.sessionId !== sessionId);
+        proj.sessions = proj.sessions.filter((s) => s.sessionId !== sessionId);
       }
     }
     sessionMap.delete(sessionId);
@@ -335,16 +491,21 @@ window.api.onProcessExited((sessionId, exitCode) => {
 // --- Terminal notifications (iTerm2 OSC 9 — "needs attention") ---
 window.api.onTerminalNotification((sessionId, message) => {
   // Only mark as needing attention for "attention" messages, not "waiting for input"
-  if (/attention|approval|permission|needs your/i.test(message) && sessionId !== activeSessionId) {
+  if (
+    /attention|approval|permission|needs your/i.test(message) &&
+    sessionId !== activeSessionId
+  ) {
     attentionSessions.add(sessionId);
-    const item = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
-    if (item) item.classList.add('needs-attention');
+    const item = document.querySelector(
+      `.session-item[data-session-id="${sessionId}"]`,
+    );
+    if (item) item.classList.add("needs-attention");
   }
 
   // Show in header if active
   if (sessionId === activeSessionId && terminalHeaderPtyTitle) {
     terminalHeaderPtyTitle.textContent = message;
-    terminalHeaderPtyTitle.style.display = '';
+    terminalHeaderPtyTitle.style.display = "";
   }
 });
 
@@ -362,20 +523,22 @@ function updateProgressIndicators(sessionId) {
   const state = info?.state ?? 0;
 
   // Update sidebar item
-  const item = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
+  const item = document.querySelector(
+    `.session-item[data-session-id="${sessionId}"]`,
+  );
   if (item) {
-    item.classList.toggle('is-busy', state === 3);
-    item.classList.toggle('has-progress', state === 1);
-    item.classList.toggle('has-error', state === 2);
+    item.classList.toggle("is-busy", state === 3);
+    item.classList.toggle("has-progress", state === 1);
+    item.classList.toggle("has-error", state === 2);
   }
 
   // Update terminal header progress bar if this is the active session
   if (sessionId === activeSessionId) {
-    const bar = document.getElementById('terminal-progress-bar');
+    const bar = document.getElementById("terminal-progress-bar");
     if (!bar) return;
-    bar.className = 'progress-state-' + state;
+    bar.className = "progress-state-" + state;
     if (state === 1) {
-      bar.style.setProperty('--progress', (percent || 0) + '%');
+      bar.style.setProperty("--progress", (percent || 0) + "%");
     }
   }
 }
@@ -387,64 +550,73 @@ function resetSortDebouncing() {
 }
 
 // --- Archive toggle ---
-archiveToggle.addEventListener('click', () => {
+archiveToggle.addEventListener("click", () => {
   showArchived = !showArchived;
-  archiveToggle.classList.toggle('active', showArchived);
+  archiveToggle.classList.toggle("active", showArchived);
   resetSortDebouncing();
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 });
 
 // --- Star filter toggle ---
-starToggle.addEventListener('click', () => {
+starToggle.addEventListener("click", () => {
   showStarredOnly = !showStarredOnly;
-  if (showStarredOnly) { showRunningOnly = false; runningToggle.classList.remove('active'); }
-  starToggle.classList.toggle('active', showStarredOnly);
+  if (showStarredOnly) {
+    showRunningOnly = false;
+    runningToggle.classList.remove("active");
+  }
+  starToggle.classList.toggle("active", showStarredOnly);
   resetSortDebouncing();
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 });
 
 // --- Running filter toggle ---
-runningToggle.addEventListener('click', () => {
+runningToggle.addEventListener("click", () => {
   showRunningOnly = !showRunningOnly;
-  if (showRunningOnly) { showStarredOnly = false; starToggle.classList.remove('active'); }
-  runningToggle.classList.toggle('active', showRunningOnly);
+  if (showRunningOnly) {
+    showStarredOnly = false;
+    starToggle.classList.remove("active");
+  }
+  runningToggle.classList.toggle("active", showRunningOnly);
   resetSortDebouncing();
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 });
 
 // --- Today filter toggle ---
-todayToggle.addEventListener('click', () => {
+todayToggle.addEventListener("click", () => {
   showTodayOnly = !showTodayOnly;
-  todayToggle.classList.toggle('active', showTodayOnly);
+  todayToggle.classList.toggle("active", showTodayOnly);
   resetSortDebouncing();
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 });
 
 // --- Search (debounced, per-tab FTS) ---
 let searchDebounceTimer = null;
-const searchClear = document.getElementById('search-clear');
+const searchClear = document.getElementById("search-clear");
 
 function clearSearch() {
-  searchInput.value = '';
-  searchBar.classList.remove('has-query');
-  if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null; }
-  if (activeTab === 'sessions') {
+  searchInput.value = "";
+  searchBar.classList.remove("has-query");
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
+  }
+  if (activeTab === "sessions") {
     renderProjects(showArchived ? cachedAllProjects : cachedProjects);
-  } else if (activeTab === 'plans') {
+  } else if (activeTab === "plans") {
     renderPlans(cachedPlans);
-  } else if (activeTab === 'memory') {
+  } else if (activeTab === "memory") {
     renderMemories(cachedMemories);
   }
 }
 
-searchClear.addEventListener('click', () => {
+searchClear.addEventListener("click", () => {
   clearSearch();
   searchInput.focus();
 });
 
-searchInput.addEventListener('input', () => {
+searchInput.addEventListener("input", () => {
   // Toggle clear button visibility
-  searchBar.classList.toggle('has-query', searchInput.value.length > 0);
+  searchBar.classList.toggle("has-query", searchInput.value.length > 0);
 
   if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
   searchDebounceTimer = setTimeout(async () => {
@@ -457,27 +629,29 @@ searchInput.addEventListener('input', () => {
     }
 
     try {
-      if (activeTab === 'sessions') {
-        const results = await window.api.search('session', query);
-        const matchIds = new Set(results.map(r => r.id));
+      if (activeTab === "sessions") {
+        const results = await window.api.search("session", query);
+        const matchIds = new Set(results.map((r) => r.id));
         // Always search all projects (including archived) so no results are hidden
-        const filtered = cachedAllProjects.map(p => ({
-          ...p,
-          sessions: p.sessions.filter(s => matchIds.has(s.sessionId)),
-        })).filter(p => p.sessions.length > 0);
+        const filtered = cachedAllProjects
+          .map((p) => ({
+            ...p,
+            sessions: p.sessions.filter((s) => matchIds.has(s.sessionId)),
+          }))
+          .filter((p) => p.sessions.length > 0);
         renderProjects(filtered, true);
-      } else if (activeTab === 'plans') {
-        const results = await window.api.search('plan', query);
-        const matchIds = new Set(results.map(r => r.id));
-        renderPlans(cachedPlans.filter(p => matchIds.has(p.filename)));
-      } else if (activeTab === 'memory') {
-        const results = await window.api.search('memory', query);
-        const matchIds = new Set(results.map(r => r.id));
-        renderMemories(cachedMemories.filter(m => matchIds.has(m.filePath)));
+      } else if (activeTab === "plans") {
+        const results = await window.api.search("plan", query);
+        const matchIds = new Set(results.map((r) => r.id));
+        renderPlans(cachedPlans.filter((p) => matchIds.has(p.filename)));
+      } else if (activeTab === "memory") {
+        const results = await window.api.search("memory", query);
+        const matchIds = new Set(results.map((r) => r.id));
+        renderMemories(cachedMemories.filter((m) => matchIds.has(m.filePath)));
       }
     } catch {
       // Fallback to showing all on error
-      if (activeTab === 'sessions') {
+      if (activeTab === "sessions") {
         renderProjects(showArchived ? cachedAllProjects : cachedProjects);
       }
     }
@@ -485,18 +659,18 @@ searchInput.addEventListener('input', () => {
 });
 
 // --- Terminal header controls ---
-terminalStopBtn.addEventListener('click', async () => {
+terminalStopBtn.addEventListener("click", async () => {
   if (!activeSessionId) return;
   const sid = activeSessionId;
   await window.api.stopSession(sid);
   activePtyIds.delete(sid);
   setActiveSession(null);
-  terminalHeader.style.display = 'none';
-  placeholder.style.display = '';
+  terminalHeader.style.display = "none";
+  placeholder.style.display = "";
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 });
 
-terminalRestartBtn.addEventListener('click', () => {
+terminalRestartBtn.addEventListener("click", () => {
   if (!activeSessionId) return;
   const entry = openSessions.get(activeSessionId);
   if (!entry) return;
@@ -518,44 +692,53 @@ async function pollActiveSessions() {
 }
 
 function updateRunningIndicators() {
-  document.querySelectorAll('.session-item').forEach(item => {
+  document.querySelectorAll(".session-item").forEach((item) => {
     const id = item.dataset.sessionId;
     const running = activePtyIds.has(id);
-    item.classList.toggle('has-running-pty', running);
+    item.classList.toggle("has-running-pty", running);
     if (!running) {
-      item.classList.remove('has-unread', 'needs-attention', 'is-busy', 'has-progress', 'has-error');
+      item.classList.remove(
+        "has-unread",
+        "needs-attention",
+        "is-busy",
+        "has-progress",
+        "has-error",
+      );
       unreadSessions.delete(id);
       attentionSessions.delete(id);
       sessionProgressState.delete(id);
     }
-    const dot = item.querySelector('.session-status-dot');
-    if (dot) dot.classList.toggle('running', running);
+    const dot = item.querySelector(".session-status-dot");
+    if (dot) dot.classList.toggle("running", running);
   });
   // Update slug group running dots
-  document.querySelectorAll('.slug-group').forEach(group => {
-    const hasRunning = group.querySelector('.session-item.has-running-pty') !== null;
-    const dot = group.querySelector('.slug-group-dot');
-    if (dot) dot.classList.toggle('running', hasRunning);
+  document.querySelectorAll(".slug-group").forEach((group) => {
+    const hasRunning =
+      group.querySelector(".session-item.has-running-pty") !== null;
+    const dot = group.querySelector(".slug-group-dot");
+    if (dot) dot.classList.toggle("running", hasRunning);
   });
 }
 
 function updateTerminalHeader() {
   if (!activeSessionId) return;
   const running = activePtyIds.has(activeSessionId);
-  terminalHeaderStatus.className = running ? 'running' : 'stopped';
-  terminalHeaderStatus.textContent = running ? 'Running' : 'Stopped';
-  terminalStopBtn.style.display = running ? '' : 'none';
+  terminalHeaderStatus.className = running ? "running" : "stopped";
+  terminalHeaderStatus.textContent = running ? "Running" : "Stopped";
+  terminalStopBtn.style.display = running ? "" : "none";
   updatePtyTitle();
 }
 
-const terminalHeaderPtyTitle = document.getElementById('terminal-header-pty-title');
+const terminalHeaderPtyTitle = document.getElementById(
+  "terminal-header-pty-title",
+);
 
 function updatePtyTitle() {
   if (!activeSessionId || !terminalHeaderPtyTitle) return;
   const entry = openSessions.get(activeSessionId);
-  const title = entry?.ptyTitle || '';
+  const title = entry?.ptyTitle || "";
   terminalHeaderPtyTitle.textContent = title;
-  terminalHeaderPtyTitle.style.display = title ? '' : 'none';
+  terminalHeaderPtyTitle.style.display = title ? "" : "none";
 }
 
 setInterval(pollActiveSessions, 3000);
@@ -563,12 +746,14 @@ setInterval(pollActiveSessions, 3000);
 // Refresh sidebar timeago labels every 30s so "just now" ticks forward
 setInterval(() => {
   for (const [sessionId, time] of lastActivityTime) {
-    const item = document.getElementById('si-' + sessionId);
+    const item = document.getElementById("si-" + sessionId);
     if (!item) continue;
-    const meta = item.querySelector('.session-meta');
+    const meta = item.querySelector(".session-meta");
     if (!meta) continue;
     const session = sessionMap.get(sessionId);
-    const msgSuffix = session?.messageCount ? ' \u00b7 ' + session.messageCount + ' msgs' : '';
+    const msgSuffix = session?.messageCount
+      ? " \u00b7 " + session.messageCount + " msgs"
+      : "";
     meta.textContent = formatDate(time) + msgSuffix;
   }
 }, 30000);
@@ -593,9 +778,9 @@ function dedup(projects) {
 async function loadProjects() {
   const wasEmpty = cachedProjects.length === 0;
   if (wasEmpty) {
-    loadingStatus.textContent = 'Loading\u2026';
-    loadingStatus.className = 'active';
-    loadingStatus.style.display = '';
+    loadingStatus.textContent = "Loading\u2026";
+    loadingStatus.className = "active";
+    loadingStatus.style.display = "";
   }
   const [defaultProjects, allProjects] = await Promise.all([
     window.api.getProjects(false),
@@ -603,28 +788,34 @@ async function loadProjects() {
   ]);
   cachedProjects = defaultProjects;
   cachedAllProjects = allProjects;
-  loadingStatus.style.display = 'none';
-  loadingStatus.className = '';
+  loadingStatus.style.display = "none";
+  loadingStatus.className = "";
   dedup(cachedProjects);
   dedup(cachedAllProjects);
 
   // Reconcile pending sessions: remove ones that now have real data
   let hasReinjected = false;
   for (const [sid, pending] of [...pendingSessions]) {
-    const realExists = allProjects.some(p => p.sessions.some(s => s.sessionId === sid));
+    const realExists = allProjects.some((p) =>
+      p.sessions.some((s) => s.sessionId === sid),
+    );
     if (realExists) {
       pendingSessions.delete(sid);
     } else {
       hasReinjected = true;
       // Still pending — re-inject into cached data
       for (const projList of [cachedProjects, cachedAllProjects]) {
-        let proj = projList.find(p => p.projectPath === pending.projectPath);
+        let proj = projList.find((p) => p.projectPath === pending.projectPath);
         if (!proj) {
           // Project not in list (no other sessions) — create a synthetic entry
-          proj = { folder: pending.folder, projectPath: pending.projectPath, sessions: [] };
+          proj = {
+            folder: pending.folder,
+            projectPath: pending.projectPath,
+            sessions: [],
+          };
           projList.unshift(proj);
         }
-        if (!proj.sessions.some(s => s.sessionId === sid)) {
+        if (!proj.sessions.some((s) => s.sessionId === sid)) {
           proj.sessions.unshift(pending.session);
         }
       }
@@ -636,22 +827,29 @@ async function loadProjects() {
     const activeTerminals = await window.api.getActiveTerminals();
     for (const { sessionId, projectPath } of activeTerminals) {
       if (pendingSessions.has(sessionId)) continue; // already tracked
-      const folder = projectPath.replace(/[/_]/g, '-').replace(/^-/, '-');
+      const folder = projectPath.replace(/[/_]/g, "-").replace(/^-/, "-");
       const session = {
-        sessionId, summary: 'Terminal', firstPrompt: '', projectPath,
-        name: null, starred: 0, archived: 0, messageCount: 0,
-        modified: new Date().toISOString(), created: new Date().toISOString(),
-        type: 'terminal',
+        sessionId,
+        summary: "Terminal",
+        firstPrompt: "",
+        projectPath,
+        name: null,
+        starred: 0,
+        archived: 0,
+        messageCount: 0,
+        modified: new Date().toISOString(),
+        created: new Date().toISOString(),
+        type: "terminal",
       };
       pendingSessions.set(sessionId, { session, projectPath, folder });
       sessionMap.set(sessionId, session);
       for (const projList of [cachedProjects, cachedAllProjects]) {
-        let proj = projList.find(p => p.projectPath === projectPath);
+        let proj = projList.find((p) => p.projectPath === projectPath);
         if (!proj) {
           proj = { folder, projectPath, sessions: [] };
           projList.push(proj);
         }
-        if (!proj.sessions.some(s => s.sessionId === sessionId)) {
+        if (!proj.sessions.some((s) => s.sessionId === sessionId)) {
           proj.sessions.unshift(session);
         }
       }
@@ -664,18 +862,18 @@ async function loadProjects() {
 }
 
 function slugId(slug) {
-  return 'slug-' + slug.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return "slug-" + slug.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
 function folderId(projectPath) {
-  return 'project-' + projectPath.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return "project-" + projectPath.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
 function buildSlugGroup(slug, sessions) {
-  const group = document.createElement('div');
+  const group = document.createElement("div");
   const id = slugId(slug);
   const expanded = getExpandedSlugs().has(id);
-  group.className = expanded ? 'slug-group' : 'slug-group collapsed';
+  group.className = expanded ? "slug-group" : "slug-group collapsed";
   group.id = id;
 
   const mostRecent = sessions.reduce((a, b) => {
@@ -683,37 +881,41 @@ function buildSlugGroup(slug, sessions) {
     const bTime = lastActivityTime.get(b.sessionId) || new Date(b.modified);
     return bTime > aTime ? b : a;
   });
-  const displayName = cleanDisplayName(mostRecent.name || mostRecent.summary || slug);
-  const mostRecentTime = lastActivityTime.get(mostRecent.sessionId) || new Date(mostRecent.modified);
+  const displayName = cleanDisplayName(
+    mostRecent.name || mostRecent.summary || slug,
+  );
+  const mostRecentTime =
+    lastActivityTime.get(mostRecent.sessionId) || new Date(mostRecent.modified);
   const timeStr = formatDate(mostRecentTime);
 
-  const header = document.createElement('div');
-  header.className = 'slug-group-header';
+  const header = document.createElement("div");
+  header.className = "slug-group-header";
 
-  const row = document.createElement('div');
-  row.className = 'slug-group-row';
+  const row = document.createElement("div");
+  row.className = "slug-group-row";
 
-  const expand = document.createElement('span');
-  expand.className = 'slug-group-expand';
+  const expand = document.createElement("span");
+  expand.className = "slug-group-expand";
   expand.innerHTML = '<span class="arrow">&#9654;</span>';
 
-  const info = document.createElement('div');
-  info.className = 'slug-group-info';
+  const info = document.createElement("div");
+  info.className = "slug-group-info";
 
-  const nameEl = document.createElement('div');
-  nameEl.className = 'slug-group-name';
+  const nameEl = document.createElement("div");
+  nameEl.className = "slug-group-name";
   nameEl.textContent = displayName;
 
-  const hasRunning = sessions.some(s => activePtyIds.has(s.sessionId));
+  const hasRunning = sessions.some((s) => activePtyIds.has(s.sessionId));
 
-  const meta = document.createElement('div');
-  meta.className = 'slug-group-meta';
-  meta.innerHTML = `<span class="slug-group-dot${hasRunning ? ' running' : ''}"></span><span class="slug-group-count">${sessions.length} sessions</span> ${escapeHtml(timeStr)}`;
+  const meta = document.createElement("div");
+  meta.className = "slug-group-meta";
+  meta.innerHTML = `<span class="slug-group-dot${hasRunning ? " running" : ""}"></span><span class="slug-group-count">${sessions.length} sessions</span> ${escapeHtml(timeStr)}`;
 
-  const archiveSlugBtn = document.createElement('button');
-  archiveSlugBtn.className = 'slug-group-archive-btn';
-  archiveSlugBtn.title = 'Archive all sessions in group';
-  archiveSlugBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1,1 L11,1 L11,4 L1,4 Z"/><path d="M1,4 L1,11 L11,11 L11,4"/><line x1="5" y1="6.5" x2="7" y2="6.5"/></svg>';
+  const archiveSlugBtn = document.createElement("button");
+  archiveSlugBtn.className = "slug-group-archive-btn";
+  archiveSlugBtn.title = "Archive all sessions in group";
+  archiveSlugBtn.innerHTML =
+    '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1,1 L11,1 L11,4 L1,4 Z"/><path d="M1,4 L1,11 L11,11 L11,4"/><line x1="5" y1="6.5" x2="7" y2="6.5"/></svg>';
 
   info.appendChild(nameEl);
   info.appendChild(meta);
@@ -722,8 +924,8 @@ function buildSlugGroup(slug, sessions) {
   row.appendChild(archiveSlugBtn);
   header.appendChild(row);
 
-  const sessionsContainer = document.createElement('div');
-  sessionsContainer.className = 'slug-group-sessions';
+  const sessionsContainer = document.createElement("div");
+  sessionsContainer.className = "slug-group-sessions";
 
   const promoted = [];
   const rest = [];
@@ -736,19 +938,19 @@ function buildSlugGroup(slug, sessions) {
   }
 
   if (promoted.length > 0) {
-    group.classList.add('has-promoted');
+    group.classList.add("has-promoted");
     for (const session of promoted) {
       sessionsContainer.appendChild(buildSessionItem(session));
     }
     if (rest.length > 0) {
-      const moreBtn = document.createElement('div');
-      moreBtn.className = 'slug-group-more';
-      moreBtn.id = 'sgm-' + id;
+      const moreBtn = document.createElement("div");
+      moreBtn.className = "slug-group-more";
+      moreBtn.id = "sgm-" + id;
       moreBtn.textContent = `+ ${rest.length} more`;
 
-      const olderDiv = document.createElement('div');
-      olderDiv.className = 'slug-group-older';
-      olderDiv.id = 'sgo-' + id;
+      const olderDiv = document.createElement("div");
+      olderDiv.className = "slug-group-older";
+      olderDiv.id = "sgo-" + id;
       for (const session of rest) {
         olderDiv.appendChild(buildSessionItem(session));
       }
@@ -776,7 +978,7 @@ let lastProjectSortTime = 0; // timestamp of last project group re-sort
 
 let lastRenderWasSearch = false;
 function renderProjects(projects, isSearchResult) {
-  const newSidebar = document.createElement('div');
+  const newSidebar = document.createElement("div");
 
   // Debounce project group re-sorting: only re-sort if >5 min since last sort
   const now = Date.now();
@@ -804,18 +1006,21 @@ function renderProjects(projects, isSearchResult) {
     // === STEP 1: Filter ===
     let filtered = project.sessions;
     if (showStarredOnly) {
-      filtered = filtered.filter(s => s.starred);
+      filtered = filtered.filter((s) => s.starred);
     }
     if (showRunningOnly) {
-      filtered = filtered.filter(s => activePtyIds.has(s.sessionId));
+      filtered = filtered.filter((s) => activePtyIds.has(s.sessionId));
     }
     if (showTodayOnly) {
       const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      filtered = filtered.filter(s => {
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      filtered = filtered.filter((s) => {
         if (!s.modified) return false;
         const d = new Date(s.modified);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` === todayStr;
+        return (
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` ===
+          todayStr
+        );
       });
     }
     if (filtered.length === 0 && project.sessions.length > 0) continue;
@@ -823,10 +1028,12 @@ function renderProjects(projects, isSearchResult) {
     // === STEP 2: Sort ===
     // Priority: pinned+running > running > pinned > rest (by modified desc)
     filtered = [...filtered].sort((a, b) => {
-      const aRunning = activePtyIds.has(a.sessionId) || pendingSessions.has(a.sessionId);
-      const bRunning = activePtyIds.has(b.sessionId) || pendingSessions.has(b.sessionId);
-      const aPri = (a.starred && aRunning ? 3 : aRunning ? 2 : a.starred ? 1 : 0);
-      const bPri = (b.starred && bRunning ? 3 : bRunning ? 2 : b.starred ? 1 : 0);
+      const aRunning =
+        activePtyIds.has(a.sessionId) || pendingSessions.has(a.sessionId);
+      const bRunning =
+        activePtyIds.has(b.sessionId) || pendingSessions.has(b.sessionId);
+      const aPri = a.starred && aRunning ? 3 : aRunning ? 2 : a.starred ? 1 : 0;
+      const bPri = b.starred && bRunning ? 3 : bRunning ? 2 : b.starred ? 1 : 0;
       if (aPri !== bPri) return bPri - aPri;
       return new Date(b.modified) - new Date(a.modified);
     });
@@ -846,21 +1053,33 @@ function renderProjects(projects, isSearchResult) {
     // Build render items (slug group = 1 item)
     const allItems = [];
     for (const session of ungrouped) {
-      const isRunning = activePtyIds.has(session.sessionId) || pendingSessions.has(session.sessionId);
+      const isRunning =
+        activePtyIds.has(session.sessionId) ||
+        pendingSessions.has(session.sessionId);
       allItems.push({
         sortTime: new Date(session.modified).getTime(),
-        pinned: !!session.starred, running: isRunning,
+        pinned: !!session.starred,
+        running: isRunning,
         element: buildSessionItem(session),
       });
     }
     for (const [slug, sessions] of slugMap) {
-      const mostRecentTime = Math.max(...sessions.map(s => new Date(s.modified).getTime()));
-      const hasRunning = sessions.some(s => activePtyIds.has(s.sessionId) || pendingSessions.has(s.sessionId));
-      const hasPinned = sessions.some(s => s.starred);
-      const element = sessions.length === 1 ? buildSessionItem(sessions[0]) : buildSlugGroup(slug, sessions);
+      const mostRecentTime = Math.max(
+        ...sessions.map((s) => new Date(s.modified).getTime()),
+      );
+      const hasRunning = sessions.some(
+        (s) =>
+          activePtyIds.has(s.sessionId) || pendingSessions.has(s.sessionId),
+      );
+      const hasPinned = sessions.some((s) => s.starred);
+      const element =
+        sessions.length === 1
+          ? buildSessionItem(sessions[0])
+          : buildSlugGroup(slug, sessions);
       allItems.push({
         sortTime: mostRecentTime,
-        pinned: hasPinned, running: hasRunning,
+        pinned: hasPinned,
+        running: hasRunning,
         element,
       });
     }
@@ -885,8 +1104,8 @@ function renderProjects(projects, isSearchResult) {
       }
     }
     allItems.sort((a, b) => {
-      const aPri = (a.pinned && a.running ? 3 : a.running ? 2 : a.pinned ? 1 : 0);
-      const bPri = (b.pinned && b.running ? 3 : b.running ? 2 : b.pinned ? 1 : 0);
+      const aPri = a.pinned && a.running ? 3 : a.running ? 2 : a.pinned ? 1 : 0;
+      const bPri = b.pinned && b.running ? 3 : b.running ? 2 : b.pinned ? 1 : 0;
       if (aPri !== bPri) return bPri - aPri;
       return b.effectiveSortTime - a.effectiveSortTime;
     });
@@ -905,7 +1124,11 @@ function renderProjects(projects, isSearchResult) {
       const ageCutoff = Date.now() - sessionMaxAgeDays * 86400000;
       for (const item of allItems) {
         // Running and pinned always show; others must be within count AND age limit
-        if (item.running || item.pinned || (count < visibleSessionCount && item.sortTime >= ageCutoff)) {
+        if (
+          item.running ||
+          item.pinned ||
+          (count < visibleSessionCount && item.sortTime >= ageCutoff)
+        ) {
           visible.push(item);
           count++;
         } else {
@@ -920,51 +1143,58 @@ function renderProjects(projects, isSearchResult) {
     }
 
     // === STEP 6: Build DOM ===
-    const group = document.createElement('div');
-    group.className = 'project-group';
+    const group = document.createElement("div");
+    group.className = "project-group";
     group.id = fId;
 
-    const header = document.createElement('div');
-    header.className = 'project-header';
-    header.id = 'ph-' + fId;
-    const shortName = project.projectPath.split('/').filter(Boolean).slice(-2).join('/');
+    const header = document.createElement("div");
+    header.className = "project-header";
+    header.id = "ph-" + fId;
+    const shortName = project.projectPath
+      .split("/")
+      .filter(Boolean)
+      .slice(-2)
+      .join("/");
     header.innerHTML = `<span class="arrow">&#9660;</span> <span class="project-name">${shortName}</span>`;
 
-    const settingsBtn = document.createElement('button');
-    settingsBtn.className = 'project-settings-btn';
-    settingsBtn.title = 'Project settings';
-    settingsBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.6 1h2.8l.4 2.1a5.5 5.5 0 0 1 1.3.8l2-.8 1.4 2.4-1.6 1.4a5.6 5.6 0 0 1 0 1.5l1.6 1.4-1.4 2.4-2-.8a5.5 5.5 0 0 1-1.3.8L9.4 15H6.6l-.4-2.1a5.5 5.5 0 0 1-1.3-.8l-2 .8-1.4-2.4 1.6-1.4a5.6 5.6 0 0 1 0-1.5L1.5 6.2l1.4-2.4 2 .8a5.5 5.5 0 0 1 1.3-.8L6.6 1z"/><circle cx="8" cy="8" r="2.5"/></svg>';
+    const settingsBtn = document.createElement("button");
+    settingsBtn.className = "project-settings-btn";
+    settingsBtn.title = "Project settings";
+    settingsBtn.innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.6 1h2.8l.4 2.1a5.5 5.5 0 0 1 1.3.8l2-.8 1.4 2.4-1.6 1.4a5.6 5.6 0 0 1 0 1.5l1.6 1.4-1.4 2.4-2-.8a5.5 5.5 0 0 1-1.3.8L9.4 15H6.6l-.4-2.1a5.5 5.5 0 0 1-1.3-.8l-2 .8-1.4-2.4 1.6-1.4a5.6 5.6 0 0 1 0-1.5L1.5 6.2l1.4-2.4 2 .8a5.5 5.5 0 0 1 1.3-.8L6.6 1z"/><circle cx="8" cy="8" r="2.5"/></svg>';
     header.appendChild(settingsBtn);
 
-    const archiveGroupBtn = document.createElement('button');
-    archiveGroupBtn.className = 'project-archive-btn';
-    archiveGroupBtn.title = 'Archive all sessions';
-    archiveGroupBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1,1 L11,1 L11,4 L1,4 Z"/><path d="M1,4 L1,11 L11,11 L11,4"/><line x1="5" y1="6.5" x2="7" y2="6.5"/></svg>';
+    const archiveGroupBtn = document.createElement("button");
+    archiveGroupBtn.className = "project-archive-btn";
+    archiveGroupBtn.title = "Archive all sessions";
+    archiveGroupBtn.innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1,1 L11,1 L11,4 L1,4 Z"/><path d="M1,4 L1,11 L11,11 L11,4"/><line x1="5" y1="6.5" x2="7" y2="6.5"/></svg>';
     header.appendChild(archiveGroupBtn);
 
-    const newBtn = document.createElement('button');
-    newBtn.className = 'project-new-btn';
-    newBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>';
-    newBtn.title = 'New session';
+    const newBtn = document.createElement("button");
+    newBtn.className = "project-new-btn";
+    newBtn.innerHTML =
+      '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>';
+    newBtn.title = "New session";
     header.appendChild(newBtn);
 
-    const sessionsList = document.createElement('div');
-    sessionsList.className = 'project-sessions';
-    sessionsList.id = 'sessions-' + fId;
+    const sessionsList = document.createElement("div");
+    sessionsList.className = "project-sessions";
+    sessionsList.id = "sessions-" + fId;
 
     for (const item of visible) {
       sessionsList.appendChild(item.element);
     }
 
     if (older.length > 0) {
-      const moreBtn = document.createElement('div');
-      moreBtn.className = 'sessions-more-toggle';
-      moreBtn.id = 'older-' + fId;
+      const moreBtn = document.createElement("div");
+      moreBtn.className = "sessions-more-toggle";
+      moreBtn.id = "older-" + fId;
       moreBtn.textContent = `+ ${older.length} older`;
-      const olderList = document.createElement('div');
-      olderList.className = 'sessions-older';
-      olderList.id = 'older-list-' + fId;
-      olderList.style.display = 'none';
+      const olderList = document.createElement("div");
+      olderList.className = "sessions-older";
+      olderList.id = "older-list-" + fId;
+      olderList.style.display = "none";
       for (const item of older) {
         olderList.appendChild(item.element);
       }
@@ -975,8 +1205,11 @@ function renderProjects(projects, isSearchResult) {
     // Auto-collapse if most recent session is older than 5 days
     if (!isSearchResult && !showStarredOnly && !showRunningOnly) {
       const mostRecent = filtered[0]?.modified;
-      if (mostRecent && (Date.now() - new Date(mostRecent)) > sessionMaxAgeDays * 86400000) {
-        header.classList.add('collapsed');
+      if (
+        mostRecent &&
+        Date.now() - new Date(mostRecent) > sessionMaxAgeDays * 86400000
+      ) {
+        header.classList.add("collapsed");
       }
     }
 
@@ -987,52 +1220,70 @@ function renderProjects(projects, isSearchResult) {
 
   // Re-apply active state
   if (activeSessionId) {
-    const activeItem = newSidebar.querySelector(`[data-session-id="${activeSessionId}"]`);
-    if (activeItem) activeItem.classList.add('active');
+    const activeItem = newSidebar.querySelector(
+      `[data-session-id="${activeSessionId}"]`,
+    );
+    if (activeItem) activeItem.classList.add("active");
   }
 
   morphdom(sidebarContent, newSidebar, {
     childrenOnly: true,
     onBeforeElUpdated(fromEl, toEl) {
-      if (fromEl.classList.contains('project-header')) {
-        if (fromEl.classList.contains('collapsed')) {
-          toEl.classList.add('collapsed');
+      if (fromEl.classList.contains("project-header")) {
+        if (fromEl.classList.contains("collapsed")) {
+          toEl.classList.add("collapsed");
         } else {
-          toEl.classList.remove('collapsed');
+          toEl.classList.remove("collapsed");
         }
       }
-      if (fromEl.classList.contains('slug-group')) {
-        if (fromEl.classList.contains('collapsed')) {
-          toEl.classList.add('collapsed');
+      if (fromEl.classList.contains("slug-group")) {
+        if (fromEl.classList.contains("collapsed")) {
+          toEl.classList.add("collapsed");
         } else {
-          toEl.classList.remove('collapsed');
+          toEl.classList.remove("collapsed");
         }
       }
-      if (fromEl.classList.contains('sessions-older') && fromEl.style.display !== 'none') {
-        toEl.style.display = '';
+      if (
+        fromEl.classList.contains("sessions-older") &&
+        fromEl.style.display !== "none"
+      ) {
+        toEl.style.display = "";
       }
-      if (fromEl.classList.contains('sessions-more-toggle') && fromEl.classList.contains('expanded')) {
-        toEl.classList.add('expanded');
-        toEl.textContent = '- hide older';
+      if (
+        fromEl.classList.contains("sessions-more-toggle") &&
+        fromEl.classList.contains("expanded")
+      ) {
+        toEl.classList.add("expanded");
+        toEl.textContent = "- hide older";
       }
-      if (fromEl.classList.contains('slug-group-older') && fromEl.style.display !== 'none') {
-        toEl.style.display = '';
+      if (
+        fromEl.classList.contains("slug-group-older") &&
+        fromEl.style.display !== "none"
+      ) {
+        toEl.style.display = "";
       }
-      if (fromEl.classList.contains('slug-group-more') && fromEl.classList.contains('expanded')) {
-        toEl.classList.add('expanded');
+      if (
+        fromEl.classList.contains("slug-group-more") &&
+        fromEl.classList.contains("expanded")
+      ) {
+        toEl.classList.add("expanded");
       }
       return true;
     },
     getNodeKey(node) {
       return node.id || undefined;
-    }
+    },
   });
 
   rebindSidebarEvents(projects);
   lastRenderWasSearch = !!isSearchResult;
 
   // Restore terminal focus after morphdom DOM updates, but not if the user is typing in the search box
-  if (activeSessionId && openSessions.has(activeSessionId) && document.activeElement !== searchInput) {
+  if (
+    activeSessionId &&
+    openSessions.has(activeSessionId) &&
+    document.activeElement !== searchInput
+  ) {
     openSessions.get(activeSessionId).terminal.focus();
   }
 }
@@ -1040,24 +1291,39 @@ function renderProjects(projects, isSearchResult) {
 function rebindSidebarEvents(projects) {
   for (const project of projects) {
     const fId = folderId(project.projectPath);
-    const header = document.getElementById('ph-' + fId);
+    const header = document.getElementById("ph-" + fId);
     if (!header) continue;
-    const newBtn = header.querySelector('.project-new-btn');
+    const newBtn = header.querySelector(".project-new-btn");
     if (newBtn) {
-      newBtn.onclick = (e) => { e.stopPropagation(); showNewSessionPopover(project, newBtn); };
+      newBtn.onclick = (e) => {
+        e.stopPropagation();
+        showNewSessionPopover(project, newBtn);
+      };
     }
-    const settingsBtn = header.querySelector('.project-settings-btn');
+    const settingsBtn = header.querySelector(".project-settings-btn");
     if (settingsBtn) {
-      settingsBtn.onclick = (e) => { e.stopPropagation(); openSettingsViewer('project', project.projectPath); };
+      settingsBtn.onclick = (e) => {
+        e.stopPropagation();
+        openSettingsViewer("project", project.projectPath);
+      };
     }
-    const archiveGroupBtn = header.querySelector('.project-archive-btn');
+    const archiveGroupBtn = header.querySelector(".project-archive-btn");
     if (archiveGroupBtn) {
       archiveGroupBtn.onclick = async (e) => {
         e.stopPropagation();
-        const sessions = project.sessions.filter(s => !s.archived);
+        const sessions = project.sessions.filter((s) => !s.archived);
         if (sessions.length === 0) return;
-        const shortName = project.projectPath.split('/').filter(Boolean).slice(-2).join('/');
-        if (!confirm(`Archive all ${sessions.length} session${sessions.length > 1 ? 's' : ''} in ${shortName}?`)) return;
+        const shortName = project.projectPath
+          .split("/")
+          .filter(Boolean)
+          .slice(-2)
+          .join("/");
+        if (
+          !confirm(
+            `Archive all ${sessions.length} session${sessions.length > 1 ? "s" : ""} in ${shortName}?`,
+          )
+        )
+          return;
         for (const s of sessions) {
           if (activePtyIds.has(s.sessionId)) {
             await window.api.stopSession(s.sessionId);
@@ -1070,18 +1336,23 @@ function rebindSidebarEvents(projects) {
       };
     }
     header.onclick = (e) => {
-      if (e.target.closest('.project-new-btn') || e.target.closest('.project-archive-btn') || e.target.closest('.project-settings-btn')) return;
-      header.classList.toggle('collapsed');
+      if (
+        e.target.closest(".project-new-btn") ||
+        e.target.closest(".project-archive-btn") ||
+        e.target.closest(".project-settings-btn")
+      )
+        return;
+      header.classList.toggle("collapsed");
     };
   }
 
-  sidebarContent.querySelectorAll('.slug-group-header').forEach(header => {
-    const archiveBtn = header.querySelector('.slug-group-archive-btn');
+  sidebarContent.querySelectorAll(".slug-group-header").forEach((header) => {
+    const archiveBtn = header.querySelector(".slug-group-archive-btn");
     if (archiveBtn) {
       archiveBtn.onclick = async (e) => {
         e.stopPropagation();
         const group = header.parentElement;
-        const sessionItems = group.querySelectorAll('.session-item');
+        const sessionItems = group.querySelectorAll(".session-item");
         for (const item of sessionItems) {
           const sid = item.dataset.sessionId;
           const session = sessionMap.get(sid);
@@ -1095,42 +1366,44 @@ function rebindSidebarEvents(projects) {
       };
     }
     header.onclick = (e) => {
-      if (e.target.closest('.slug-group-archive-btn')) return;
-      header.parentElement.classList.toggle('collapsed');
+      if (e.target.closest(".slug-group-archive-btn")) return;
+      header.parentElement.classList.toggle("collapsed");
       saveExpandedSlugs();
     };
   });
 
-  sidebarContent.querySelectorAll('.slug-group-more').forEach(moreBtn => {
+  sidebarContent.querySelectorAll(".slug-group-more").forEach((moreBtn) => {
     moreBtn.onclick = () => {
-      const group = moreBtn.closest('.slug-group');
+      const group = moreBtn.closest(".slug-group");
       if (group) {
-        group.classList.remove('collapsed');
+        group.classList.remove("collapsed");
         saveExpandedSlugs();
       }
     };
   });
 
-  sidebarContent.querySelectorAll('.sessions-more-toggle').forEach(moreBtn => {
-    const olderList = moreBtn.nextElementSibling;
-    if (!olderList || !olderList.classList.contains('sessions-older')) return;
-    const count = olderList.children.length;
-    moreBtn.onclick = () => {
-      const showing = olderList.style.display !== 'none';
-      olderList.style.display = showing ? 'none' : '';
-      moreBtn.classList.toggle('expanded', !showing);
-      moreBtn.textContent = showing ? `+ ${count} older` : '- hide older';
-    };
-  });
+  sidebarContent
+    .querySelectorAll(".sessions-more-toggle")
+    .forEach((moreBtn) => {
+      const olderList = moreBtn.nextElementSibling;
+      if (!olderList || !olderList.classList.contains("sessions-older")) return;
+      const count = olderList.children.length;
+      moreBtn.onclick = () => {
+        const showing = olderList.style.display !== "none";
+        olderList.style.display = showing ? "none" : "";
+        moreBtn.classList.toggle("expanded", !showing);
+        moreBtn.textContent = showing ? `+ ${count} older` : "- hide older";
+      };
+    });
 
-  sidebarContent.querySelectorAll('.session-item').forEach(item => {
+  sidebarContent.querySelectorAll(".session-item").forEach((item) => {
     const sessionId = item.dataset.sessionId;
     const session = sessionMap.get(sessionId);
     if (!session) return;
 
     item.onclick = () => openSession(session);
 
-    const pin = item.querySelector('.session-pin');
+    const pin = item.querySelector(".session-pin");
     if (pin) {
       pin.onclick = async (e) => {
         e.stopPropagation();
@@ -1140,12 +1413,15 @@ function rebindSidebarEvents(projects) {
       };
     }
 
-    const summaryEl = item.querySelector('.session-summary');
+    const summaryEl = item.querySelector(".session-summary");
     if (summaryEl) {
-      summaryEl.ondblclick = (e) => { e.stopPropagation(); startRename(summaryEl, session); };
+      summaryEl.ondblclick = (e) => {
+        e.stopPropagation();
+        startRename(summaryEl, session);
+      };
     }
 
-    const stopBtn = item.querySelector('.session-stop-btn');
+    const stopBtn = item.querySelector(".session-stop-btn");
     if (stopBtn) {
       stopBtn.onclick = async (e) => {
         e.stopPropagation();
@@ -1153,20 +1429,20 @@ function rebindSidebarEvents(projects) {
         activePtyIds.delete(session.sessionId);
         if (activeSessionId === session.sessionId) {
           setActiveSession(null);
-          terminalHeader.style.display = 'none';
-          placeholder.style.display = '';
+          terminalHeader.style.display = "none";
+          placeholder.style.display = "";
         }
         renderProjects(showArchived ? cachedAllProjects : cachedProjects);
       };
     }
 
-    const forkBtn = item.querySelector('.session-fork-btn');
+    const forkBtn = item.querySelector(".session-fork-btn");
     if (forkBtn) {
       forkBtn.onclick = async (e) => {
         e.stopPropagation();
         // Find the project for this session
-        const project = [...cachedAllProjects, ...cachedProjects].find(p =>
-          p.sessions.some(s => s.sessionId === session.sessionId)
+        const project = [...cachedAllProjects, ...cachedProjects].find((p) =>
+          p.sessions.some((s) => s.sessionId === session.sessionId),
         );
         if (project) {
           forkSession(session, project);
@@ -1174,7 +1450,7 @@ function rebindSidebarEvents(projects) {
       };
     }
 
-    const jsonlBtn = item.querySelector('.session-jsonl-btn');
+    const jsonlBtn = item.querySelector(".session-jsonl-btn");
     if (jsonlBtn) {
       jsonlBtn.onclick = (e) => {
         e.stopPropagation();
@@ -1182,7 +1458,7 @@ function rebindSidebarEvents(projects) {
       };
     }
 
-    const archiveBtn = item.querySelector('.session-archive-btn');
+    const archiveBtn = item.querySelector(".session-archive-btn");
     if (archiveBtn) {
       archiveBtn.onclick = async (e) => {
         e.stopPropagation();
@@ -1200,54 +1476,61 @@ function rebindSidebarEvents(projects) {
 }
 
 function buildSessionItem(session) {
-  const item = document.createElement('div');
-  item.className = 'session-item';
-  item.id = 'si-' + session.sessionId;
-  if (session.type === 'terminal') item.classList.add('is-terminal');
-  if (session.archived) item.classList.add('archived-item');
-  if (activePtyIds.has(session.sessionId)) item.classList.add('has-running-pty');
-  if (unreadSessions.has(session.sessionId)) item.classList.add('has-unread');
-  if (attentionSessions.has(session.sessionId)) item.classList.add('needs-attention');
+  const item = document.createElement("div");
+  item.className = "session-item";
+  item.id = "si-" + session.sessionId;
+  if (session.type === "terminal") item.classList.add("is-terminal");
+  if (session.archived) item.classList.add("archived-item");
+  if (activePtyIds.has(session.sessionId))
+    item.classList.add("has-running-pty");
+  if (unreadSessions.has(session.sessionId)) item.classList.add("has-unread");
+  if (attentionSessions.has(session.sessionId))
+    item.classList.add("needs-attention");
   item.dataset.sessionId = session.sessionId;
 
-  const modified = lastActivityTime.get(session.sessionId) || new Date(session.modified);
+  const modified =
+    lastActivityTime.get(session.sessionId) || new Date(session.modified);
   const timeStr = formatDate(modified);
   const displayName = cleanDisplayName(session.name || session.summary);
 
-  const row = document.createElement('div');
-  row.className = 'session-row';
+  const row = document.createElement("div");
+  row.className = "session-row";
 
   // Pin
-  const pin = document.createElement('span');
-  pin.className = 'session-pin' + (session.starred ? ' pinned' : '');
+  const pin = document.createElement("span");
+  pin.className = "session-pin" + (session.starred ? " pinned" : "");
   pin.innerHTML = session.starred
     ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1-.707.707c-.28-.28-.576-.49-.888-.656L10.073 9.333l-.07 3.181a.5.5 0 0 1-.853.354l-3.535-3.536-4.243 4.243a.5.5 0 1 1-.707-.707l4.243-4.243L1.372 5.11a.5.5 0 0 1 .354-.854l3.18-.07L8.37 .722A3.37 3.37 0 0 1 9.12.074a.5.5 0 0 1 .708.002l-.707.707z"/></svg>'
     : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1-.707.707c-.28-.28-.576-.49-.888-.656L10.073 9.333l-.07 3.181a.5.5 0 0 1-.853.354l-3.535-3.536-4.243 4.243a.5.5 0 1 1-.707-.707l4.243-4.243L1.372 5.11a.5.5 0 0 1 .354-.854l3.18-.07L8.37 .722A3.37 3.37 0 0 1 9.12.074a.5.5 0 0 1 .708.002l-.707.707z"/></svg>';
 
   // Running status dot
-  const dot = document.createElement('span');
-  dot.className = 'session-status-dot' + (activePtyIds.has(session.sessionId) ? ' running' : '');
+  const dot = document.createElement("span");
+  dot.className =
+    "session-status-dot" +
+    (activePtyIds.has(session.sessionId) ? " running" : "");
 
   // Info block
-  const info = document.createElement('div');
-  info.className = 'session-info';
+  const info = document.createElement("div");
+  info.className = "session-info";
 
-  const summaryEl = document.createElement('div');
-  summaryEl.className = 'session-summary';
+  const summaryEl = document.createElement("div");
+  summaryEl.className = "session-summary";
   summaryEl.textContent = displayName;
 
-  const idEl = document.createElement('div');
-  idEl.className = 'session-id';
+  const idEl = document.createElement("div");
+  idEl.className = "session-id";
   idEl.textContent = session.sessionId;
 
-  const metaEl = document.createElement('div');
-  metaEl.className = 'session-meta';
-  metaEl.textContent = timeStr + (session.messageCount ? ' \u00b7 ' + session.messageCount + ' msgs' : '');
+  const metaEl = document.createElement("div");
+  metaEl.className = "session-meta";
+  metaEl.textContent =
+    timeStr +
+    (session.messageCount ? " \u00b7 " + session.messageCount + " msgs" : "");
 
-  if (session.type === 'terminal') {
-    const badge = document.createElement('span');
-    badge.className = 'terminal-badge';
-    badge.textContent = '>_';
+  if (session.type === "terminal") {
+    const badge = document.createElement("span");
+    badge.className = "terminal-badge";
+    badge.textContent = ">_";
     summaryEl.prepend(badge);
   }
   info.appendChild(summaryEl);
@@ -1255,30 +1538,33 @@ function buildSessionItem(session) {
   info.appendChild(metaEl);
 
   // Action buttons container
-  const actions = document.createElement('div');
-  actions.className = 'session-actions';
+  const actions = document.createElement("div");
+  actions.className = "session-actions";
 
-  const stopBtn = document.createElement('button');
-  stopBtn.className = 'session-stop-btn';
-  stopBtn.title = 'Stop session';
-  stopBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="8" height="8" rx="1"/></svg>';
+  const stopBtn = document.createElement("button");
+  stopBtn.className = "session-stop-btn";
+  stopBtn.title = "Stop session";
+  stopBtn.innerHTML =
+    '<svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="8" height="8" rx="1"/></svg>';
 
-  const archiveBtn = document.createElement('button');
-  archiveBtn.className = 'session-archive-btn';
-  archiveBtn.title = session.archived ? 'Unarchive' : 'Archive';
+  const archiveBtn = document.createElement("button");
+  archiveBtn.className = "session-archive-btn";
+  archiveBtn.title = session.archived ? "Unarchive" : "Archive";
   archiveBtn.innerHTML = session.archived
     ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4,7 6,5 8,7"/><line x1="6" y1="5" x2="6" y2="10"/><path d="M1,4 L1,11 L11,11 L11,4"/></svg>'
     : '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1,1 L11,1 L11,4 L1,4 Z"/><path d="M1,4 L1,11 L11,11 L11,4"/><line x1="5" y1="6.5" x2="7" y2="6.5"/></svg>';
 
-  const forkBtn = document.createElement('button');
-  forkBtn.className = 'session-fork-btn';
-  forkBtn.title = 'Fork session';
-  forkBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="2.5" r="1.5"/><circle cx="3" cy="9.5" r="1.5"/><circle cx="9" cy="9.5" r="1.5"/><line x1="6" y1="4" x2="6" y2="6"/><line x1="6" y1="6" x2="3" y2="8"/><line x1="6" y1="6" x2="9" y2="8"/></svg>';
+  const forkBtn = document.createElement("button");
+  forkBtn.className = "session-fork-btn";
+  forkBtn.title = "Fork session";
+  forkBtn.innerHTML =
+    '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="2.5" r="1.5"/><circle cx="3" cy="9.5" r="1.5"/><circle cx="9" cy="9.5" r="1.5"/><line x1="6" y1="4" x2="6" y2="6"/><line x1="6" y1="6" x2="3" y2="8"/><line x1="6" y1="6" x2="9" y2="8"/></svg>';
 
-  const jsonlBtn = document.createElement('button');
-  jsonlBtn.className = 'session-jsonl-btn';
-  jsonlBtn.title = 'View messages';
-  jsonlBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h8M2 6h6M2 9h4"/></svg>';
+  const jsonlBtn = document.createElement("button");
+  jsonlBtn.className = "session-jsonl-btn";
+  jsonlBtn.title = "View messages";
+  jsonlBtn.innerHTML =
+    '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h8M2 6h6M2 9h4"/></svg>';
 
   actions.appendChild(stopBtn);
   actions.appendChild(forkBtn);
@@ -1295,9 +1581,9 @@ function buildSessionItem(session) {
 }
 
 function startRename(summaryEl, session) {
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'session-rename-input';
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "session-rename-input";
   input.value = session.name || session.summary;
 
   summaryEl.replaceWith(input);
@@ -1306,29 +1592,29 @@ function startRename(summaryEl, session) {
 
   const save = async () => {
     const newName = input.value.trim();
-    const nameToSave = (newName && newName !== session.summary) ? newName : null;
+    const nameToSave = newName && newName !== session.summary ? newName : null;
     await window.api.renameSession(session.sessionId, nameToSave);
     session.name = nameToSave;
 
-    const newSummary = document.createElement('div');
-    newSummary.className = 'session-summary';
+    const newSummary = document.createElement("div");
+    newSummary.className = "session-summary";
     newSummary.textContent = nameToSave || session.summary;
-    newSummary.addEventListener('dblclick', (e) => {
+    newSummary.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       startRename(newSummary, session);
     });
     input.replaceWith(newSummary);
   };
 
-  input.addEventListener('blur', save);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') input.blur();
-    if (e.key === 'Escape') {
-      input.removeEventListener('blur', save);
-      const restored = document.createElement('div');
-      restored.className = 'session-summary';
+  input.addEventListener("blur", save);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") input.blur();
+    if (e.key === "Escape") {
+      input.removeEventListener("blur", save);
+      const restored = document.createElement("div");
+      restored.className = "session-summary";
       restored.textContent = session.name || session.summary;
-      restored.addEventListener('dblclick', (ev) => {
+      restored.addEventListener("dblclick", (ev) => {
         ev.stopPropagation();
         startRename(restored, session);
       });
@@ -1342,8 +1628,8 @@ async function launchNewSession(project, sessionOptions) {
   const projectPath = project.projectPath;
   const session = {
     sessionId,
-    summary: 'New session',
-    firstPrompt: '',
+    summary: "New session",
+    firstPrompt: "",
     projectPath,
     name: null,
     starred: 0,
@@ -1354,13 +1640,13 @@ async function launchNewSession(project, sessionOptions) {
   };
 
   // Track as pending (no .jsonl yet)
-  const folder = projectPath.replace(/[/_]/g, '-').replace(/^-/, '-');
+  const folder = projectPath.replace(/[/_]/g, "-").replace(/^-/, "-");
   pendingSessions.set(sessionId, { session, projectPath, folder });
 
   // Inject into cached project data so it appears in sidebar immediately
   sessionMap.set(sessionId, session);
   for (const projList of [cachedProjects, cachedAllProjects]) {
-    let proj = projList.find(p => p.projectPath === projectPath);
+    let proj = projList.find((p) => p.projectPath === projectPath);
     if (!proj) {
       proj = { folder, projectPath, sessions: [] };
       projList.unshift(proj);
@@ -1370,18 +1656,22 @@ async function launchNewSession(project, sessionOptions) {
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 
   // Update sidebar
-  document.querySelectorAll('.session-item.active').forEach(el => el.classList.remove('active'));
+  document
+    .querySelectorAll(".session-item.active")
+    .forEach((el) => el.classList.remove("active"));
   const item = document.querySelector(`[data-session-id="${sessionId}"]`);
-  if (item) item.classList.add('active');
-  document.querySelectorAll('.terminal-container').forEach(el => el.classList.remove('visible'));
-  placeholder.style.display = 'none';
+  if (item) item.classList.add("active");
+  document
+    .querySelectorAll(".terminal-container")
+    .forEach((el) => el.classList.remove("visible"));
+  placeholder.style.display = "none";
   hidePlanViewer();
   setActiveSession(sessionId);
   showTerminalHeader(session);
 
   // Create terminal
-  const container = document.createElement('div');
-  container.className = 'terminal-container visible';
+  const container = document.createElement("div");
+  container.className = "terminal-container visible";
   terminalsEl.appendChild(container);
 
   const terminal = new Terminal({
@@ -1395,15 +1685,23 @@ async function launchNewSession(project, sessionOptions) {
 
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.loadAddon(new WebLinksAddon((_event, url) => window.api.openExternal(url)));
+  terminal.loadAddon(
+    new WebLinksAddon((_event, url) => window.api.openExternal(url)),
+  );
   terminal.open(container);
   fitAddon.fit();
 
-  const entry = { terminal, element: container, fitAddon, session, closed: false };
+  const entry = {
+    terminal,
+    element: container,
+    fitAddon,
+    session,
+    closed: false,
+  };
   openSessions.set(sessionId, entry);
 
   // Wire up terminal input/resize via IPC
-  terminal.onData(data => {
+  terminal.onData((data) => {
     window.api.sendInput(session.sessionId, data);
   });
   attachTerminalKeyHandler(terminal, () => session.sessionId);
@@ -1412,17 +1710,22 @@ async function launchNewSession(project, sessionOptions) {
     window.api.resizeTerminal(session.sessionId, cols, rows);
   });
 
-  terminal.onTitleChange(title => {
+  terminal.onTitleChange((title) => {
     entry.ptyTitle = title;
     if (activeSessionId === session.sessionId) updatePtyTitle();
   });
 
   terminal.onBell(() => {
-    markUnread(session.sessionId, '\x07');
+    markUnread(session.sessionId, "\x07");
   });
 
   // Open terminal in main process with session options
-  const result = await window.api.openTerminal(sessionId, projectPath, true, sessionOptions || null);
+  const result = await window.api.openTerminal(
+    sessionId,
+    projectPath,
+    true,
+    sessionOptions || null,
+  );
   if (!result.ok) {
     terminal.write(`\r\nError: ${result.error}\r\n`);
     entry.closed = true;
@@ -1445,7 +1748,7 @@ function showTerminalHeader(session) {
   const displayName = cleanDisplayName(session.name || session.summary);
   terminalHeaderName.textContent = displayName;
   terminalHeaderId.textContent = session.sessionId;
-  terminalHeader.style.display = '';
+  terminalHeader.style.display = "";
   updateTerminalHeader();
   updateProgressIndicators(session.sessionId);
 }
@@ -1454,19 +1757,25 @@ async function openSession(session) {
   const { sessionId, projectPath } = session;
 
   // Update sidebar active state
-  document.querySelectorAll('.session-item.active').forEach(el => el.classList.remove('active'));
+  document
+    .querySelectorAll(".session-item.active")
+    .forEach((el) => el.classList.remove("active"));
   const item = document.querySelector(`[data-session-id="${sessionId}"]`);
-  if (item) item.classList.add('active');
+  if (item) item.classList.add("active");
 
   // Hide all terminal containers and plan viewer
-  document.querySelectorAll('.terminal-container').forEach(el => el.classList.remove('visible'));
-  placeholder.style.display = 'none';
+  document
+    .querySelectorAll(".terminal-container")
+    .forEach((el) => el.classList.remove("visible"));
+  placeholder.style.display = "none";
   hidePlanViewer();
   setActiveSession(sessionId);
   clearUnread(sessionId);
   attentionSessions.delete(sessionId);
-  const attentionItem = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
-  if (attentionItem) attentionItem.classList.remove('needs-attention');
+  const attentionItem = document.querySelector(
+    `.session-item[data-session-id="${sessionId}"]`,
+  );
+  if (attentionItem) attentionItem.classList.remove("needs-attention");
   showTerminalHeader(session);
 
   if (openSessions.has(sessionId)) {
@@ -1477,12 +1786,12 @@ async function openSession(session) {
       entry.element.remove();
       openSessions.delete(sessionId);
       // Terminal sessions re-spawn fresh
-      if (session.type === 'terminal') {
+      if (session.type === "terminal") {
         launchTerminalSession({ projectPath: session.projectPath });
         return;
       }
     } else {
-      entry.element.classList.add('visible');
+      entry.element.classList.add("visible");
       entry.fitAddon.fit();
       entry.terminal.focus();
       // Defer scrollToBottom — fit() triggers an async re-render and
@@ -1493,8 +1802,8 @@ async function openSession(session) {
   }
 
   // Create new terminal
-  const container = document.createElement('div');
-  container.className = 'terminal-container visible';
+  const container = document.createElement("div");
+  container.className = "terminal-container visible";
   terminalsEl.appendChild(container);
 
   const terminal = new Terminal({
@@ -1508,15 +1817,23 @@ async function openSession(session) {
 
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.loadAddon(new WebLinksAddon((_event, url) => window.api.openExternal(url)));
+  terminal.loadAddon(
+    new WebLinksAddon((_event, url) => window.api.openExternal(url)),
+  );
   terminal.open(container);
   fitAddon.fit();
 
-  const entry = { terminal, element: container, fitAddon, session, closed: false };
+  const entry = {
+    terminal,
+    element: container,
+    fitAddon,
+    session,
+    closed: false,
+  };
   openSessions.set(sessionId, entry);
 
   // Wire up terminal input/resize via IPC (use entry.session.sessionId so fork re-keying works)
-  terminal.onData(data => {
+  terminal.onData((data) => {
     window.api.sendInput(entry.session.sessionId, data);
   });
   attachTerminalKeyHandler(terminal, () => entry.session.sessionId);
@@ -1525,18 +1842,23 @@ async function openSession(session) {
     window.api.resizeTerminal(entry.session.sessionId, cols, rows);
   });
 
-  terminal.onTitleChange(title => {
+  terminal.onTitleChange((title) => {
     entry.ptyTitle = title;
     if (activeSessionId === entry.session.sessionId) updatePtyTitle();
   });
 
   terminal.onBell(() => {
-    markUnread(entry.session.sessionId, '\x07');
+    markUnread(entry.session.sessionId, "\x07");
   });
 
   // Open terminal in main process with resolved default settings
   const resumeOptions = await resolveDefaultSessionOptions({ projectPath });
-  const result = await window.api.openTerminal(sessionId, projectPath, false, resumeOptions);
+  const result = await window.api.openTerminal(
+    sessionId,
+    projectPath,
+    false,
+    resumeOptions,
+  );
   if (!result.ok) {
     terminal.write(`\r\nError: ${result.error}\r\n`);
     entry.closed = true;
@@ -1553,18 +1875,20 @@ async function openSession(session) {
 // Handle window resize
 // Resize: fit immediately, scroll to bottom as PTY re-render data arrives
 let resizeScrollActive = null;
-window.addEventListener('resize', () => {
+window.addEventListener("resize", () => {
   if (activeSessionId && openSessions.has(activeSessionId)) {
     const entry = openSessions.get(activeSessionId);
     entry.fitAddon.fit();
     clearTimeout(resizeScrollActive);
-    resizeScrollActive = setTimeout(() => { resizeScrollActive = null; }, 1000);
+    resizeScrollActive = setTimeout(() => {
+      resizeScrollActive = null;
+    }, 1000);
   }
 });
 
 function cleanDisplayName(name) {
   if (!name) return name;
-  const prefix = 'Implement the following plan:';
+  const prefix = "Implement the following plan:";
   if (name.startsWith(prefix)) return name.slice(prefix.length).trim();
   return name;
 }
@@ -1576,70 +1900,72 @@ function formatDate(date) {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (mins < 1) return 'just now';
+  if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function escapeHtml(str) {
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
 }
 
 // --- Tab switching ---
-document.querySelectorAll('.sidebar-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
+document.querySelectorAll(".sidebar-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
     const tabName = tab.dataset.tab;
     if (tabName === activeTab) return;
     activeTab = tabName;
-    document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+    document
+      .querySelectorAll(".sidebar-tab")
+      .forEach((t) => t.classList.toggle("active", t.dataset.tab === tabName));
 
     // Clear search on tab switch
-    searchInput.value = '';
-    searchBar.classList.remove('has-query');
+    searchInput.value = "";
+    searchBar.classList.remove("has-query");
 
     // Hide all sidebar content areas
-    sidebarContent.style.display = 'none';
-    plansContent.style.display = 'none';
-    statsContent.style.display = 'none';
-    memoryContent.style.display = 'none';
-    sessionFilters.style.display = 'none';
-    searchBar.style.display = 'none';
+    sidebarContent.style.display = "none";
+    plansContent.style.display = "none";
+    statsContent.style.display = "none";
+    memoryContent.style.display = "none";
+    sessionFilters.style.display = "none";
+    searchBar.style.display = "none";
 
-    if (tabName === 'sessions') {
-      sessionFilters.style.display = '';
-      searchBar.style.display = '';
-      sidebarContent.style.display = '';
+    if (tabName === "sessions") {
+      sessionFilters.style.display = "";
+      searchBar.style.display = "";
+      sidebarContent.style.display = "";
       // Restore terminal area if a session is open
       hideAllViewers();
       if (!activeSessionId) {
-        placeholder.style.display = '';
+        placeholder.style.display = "";
       }
       // Catch up on changes that happened while on another tab
       if (projectsChangedWhileAway) {
         projectsChangedWhileAway = false;
         loadProjects();
       }
-    } else if (tabName === 'plans') {
-      searchBar.style.display = '';
-      plansContent.style.display = '';
+    } else if (tabName === "plans") {
+      searchBar.style.display = "";
+      plansContent.style.display = "";
       loadPlans();
-    } else if (tabName === 'stats') {
-      statsContent.style.display = '';
+    } else if (tabName === "stats") {
+      statsContent.style.display = "";
       // Immediately show stats viewer in main area
-      placeholder.style.display = 'none';
-      terminalArea.style.display = 'none';
-      planViewer.style.display = 'none';
-      memoryViewer.style.display = 'none';
-      settingsViewer.style.display = 'none';
-      statsViewer.style.display = 'flex';
+      placeholder.style.display = "none";
+      terminalArea.style.display = "none";
+      planViewer.style.display = "none";
+      memoryViewer.style.display = "none";
+      settingsViewer.style.display = "none";
+      statsViewer.style.display = "flex";
       loadStats();
-    } else if (tabName === 'memory') {
-      searchBar.style.display = '';
-      memoryContent.style.display = '';
+    } else if (tabName === "memory") {
+      searchBar.style.display = "";
+      memoryContent.style.display = "";
       loadMemories();
     }
   });
@@ -1653,11 +1979,11 @@ async function loadPlans() {
 
 function renderPlans(plans) {
   plans = plans || cachedPlans;
-  plansContent.innerHTML = '';
+  plansContent.innerHTML = "";
   if (plans.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'plans-empty';
-    empty.textContent = 'No plans found in ~/.claude/plans/';
+    const empty = document.createElement("div");
+    empty.className = "plans-empty";
+    empty.textContent = "No plans found in ~/.claude/plans/";
     plansContent.appendChild(empty);
     return;
   }
@@ -1667,25 +1993,25 @@ function renderPlans(plans) {
 }
 
 function buildPlanItem(plan) {
-  const item = document.createElement('div');
-  item.className = 'session-item plan-item';
+  const item = document.createElement("div");
+  item.className = "session-item plan-item";
 
-  const row = document.createElement('div');
-  row.className = 'session-row';
+  const row = document.createElement("div");
+  row.className = "session-row";
 
-  const info = document.createElement('div');
-  info.className = 'session-info';
+  const info = document.createElement("div");
+  info.className = "session-info";
 
-  const titleEl = document.createElement('div');
-  titleEl.className = 'session-summary';
+  const titleEl = document.createElement("div");
+  titleEl.className = "session-summary";
   titleEl.textContent = plan.title;
 
-  const filenameEl = document.createElement('div');
-  filenameEl.className = 'session-id';
+  const filenameEl = document.createElement("div");
+  filenameEl.className = "session-id";
   filenameEl.textContent = plan.filename;
 
-  const metaEl = document.createElement('div');
-  metaEl.className = 'session-meta';
+  const metaEl = document.createElement("div");
+  metaEl.className = "session-meta";
   metaEl.textContent = formatDate(new Date(plan.modified));
 
   info.appendChild(titleEl);
@@ -1694,17 +2020,19 @@ function buildPlanItem(plan) {
   row.appendChild(info);
   item.appendChild(row);
 
-  item.addEventListener('click', () => openPlan(plan));
+  item.addEventListener("click", () => openPlan(plan));
   return item;
 }
 
 async function openPlan(plan) {
   // Mark active in sidebar
-  plansContent.querySelectorAll('.plan-item.active').forEach(el => el.classList.remove('active'));
-  const items = plansContent.querySelectorAll('.plan-item');
-  items.forEach(el => {
-    if (el.querySelector('.session-id')?.textContent === plan.filename) {
-      el.classList.add('active');
+  plansContent
+    .querySelectorAll(".plan-item.active")
+    .forEach((el) => el.classList.remove("active"));
+  const items = plansContent.querySelectorAll(".plan-item");
+  items.forEach((el) => {
+    if (el.querySelector(".session-id")?.textContent === plan.filename) {
+      el.classList.add("active");
     }
   });
 
@@ -1714,12 +2042,12 @@ async function openPlan(plan) {
   currentPlanFilename = plan.filename;
 
   // Hide terminal area and placeholder, show plan viewer
-  placeholder.style.display = 'none';
-  terminalArea.style.display = 'none';
-  statsViewer.style.display = 'none';
-  memoryViewer.style.display = 'none';
-  settingsViewer.style.display = 'none';
-  planViewer.style.display = 'flex';
+  placeholder.style.display = "none";
+  terminalArea.style.display = "none";
+  statsViewer.style.display = "none";
+  memoryViewer.style.display = "none";
+  settingsViewer.style.display = "none";
+  planViewer.style.display = "flex";
 
   planViewerTitle.textContent = plan.title;
   planViewerFilepath.textContent = currentPlanFilePath;
@@ -1729,7 +2057,11 @@ async function openPlan(plan) {
     planEditorView = createPlanEditor(planViewerEditorEl);
   }
   planEditorView.dispatch({
-    changes: { from: 0, to: planEditorView.state.doc.length, insert: currentPlanContent },
+    changes: {
+      from: 0,
+      to: planEditorView.state.doc.length,
+      insert: currentPlanContent,
+    },
   });
 }
 
@@ -1737,35 +2069,39 @@ async function openPlan(plan) {
 function flashButtonText(btn, text, duration = 1200) {
   const original = btn.textContent;
   btn.textContent = text;
-  setTimeout(() => { btn.textContent = original; }, duration);
+  setTimeout(() => {
+    btn.textContent = original;
+  }, duration);
 }
 
-planCopyPathBtn.addEventListener('click', () => {
+planCopyPathBtn.addEventListener("click", () => {
   navigator.clipboard.writeText(currentPlanFilePath);
-  flashButtonText(planCopyPathBtn, 'Copied!');
+  flashButtonText(planCopyPathBtn, "Copied!");
 });
 
-planCopyContentBtn.addEventListener('click', () => {
-  const content = planEditorView ? planEditorView.state.doc.toString() : currentPlanContent;
+planCopyContentBtn.addEventListener("click", () => {
+  const content = planEditorView
+    ? planEditorView.state.doc.toString()
+    : currentPlanContent;
   navigator.clipboard.writeText(content);
-  flashButtonText(planCopyContentBtn, 'Copied!');
+  flashButtonText(planCopyContentBtn, "Copied!");
 });
 
-planSaveBtn.addEventListener('click', async () => {
+planSaveBtn.addEventListener("click", async () => {
   if (planEditorView) {
     currentPlanContent = planEditorView.state.doc.toString();
   }
   await window.api.savePlan(currentPlanFilePath, currentPlanContent);
-  flashButtonText(planSaveBtn, 'Saved!');
+  flashButtonText(planSaveBtn, "Saved!");
 });
 
 function hideAllViewers() {
-  planViewer.style.display = 'none';
-  statsViewer.style.display = 'none';
-  memoryViewer.style.display = 'none';
-  settingsViewer.style.display = 'none';
-  jsonlViewer.style.display = 'none';
-  terminalArea.style.display = '';
+  planViewer.style.display = "none";
+  statsViewer.style.display = "none";
+  memoryViewer.style.display = "none";
+  settingsViewer.style.display = "none";
+  jsonlViewer.style.display = "none";
+  terminalArea.style.display = "";
 }
 
 function hidePlanViewer() {
@@ -1775,36 +2111,46 @@ function hidePlanViewer() {
 // --- JSONL Message History Viewer ---
 function renderJsonlText(text) {
   let html = escapeHtml(text);
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="jsonl-code-block"><code>$2</code></pre>');
-  html = html.replace(/`([^`]+)`/g, '<code class="jsonl-inline-code">$1</code>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(
+    /```(\w*)\n([\s\S]*?)```/g,
+    '<pre class="jsonl-code-block"><code>$2</code></pre>',
+  );
+  html = html.replace(
+    /`([^`]+)`/g,
+    '<code class="jsonl-inline-code">$1</code>',
+  );
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   return html;
 }
 
 function formatDuration(ms) {
-  if (ms < 1000) return ms + 'ms';
+  if (ms < 1000) return ms + "ms";
   const s = (ms / 1000).toFixed(1);
-  return s + 's';
+  return s + "s";
 }
 
 function makeCollapsible(className, headerText, bodyContent, startExpanded) {
-  const wrapper = document.createElement('div');
+  const wrapper = document.createElement("div");
   wrapper.className = className;
-  const header = document.createElement('div');
-  header.className = 'jsonl-toggle' + (startExpanded ? ' expanded' : '');
+  const header = document.createElement("div");
+  header.className = "jsonl-toggle" + (startExpanded ? " expanded" : "");
   header.textContent = headerText;
-  const body = document.createElement('pre');
-  body.className = 'jsonl-tool-body';
-  body.style.display = startExpanded ? '' : 'none';
-  if (typeof bodyContent === 'string') {
+  const body = document.createElement("pre");
+  body.className = "jsonl-tool-body";
+  body.style.display = startExpanded ? "" : "none";
+  if (typeof bodyContent === "string") {
     body.textContent = bodyContent;
   } else {
-    try { body.textContent = JSON.stringify(bodyContent, null, 2); } catch { body.textContent = String(bodyContent); }
+    try {
+      body.textContent = JSON.stringify(bodyContent, null, 2);
+    } catch {
+      body.textContent = String(bodyContent);
+    }
   }
   header.onclick = () => {
-    const showing = body.style.display !== 'none';
-    body.style.display = showing ? 'none' : '';
-    header.classList.toggle('expanded', !showing);
+    const showing = body.style.display !== "none";
+    body.style.display = showing ? "none" : "";
+    header.classList.toggle("expanded", !showing);
   };
   wrapper.appendChild(header);
   wrapper.appendChild(body);
@@ -1813,28 +2159,39 @@ function makeCollapsible(className, headerText, bodyContent, startExpanded) {
 
 function renderJsonlEntry(entry) {
   const ts = entry.timestamp;
-  const timeStr = ts ? new Date(ts).toLocaleTimeString() : '';
+  const timeStr = ts ? new Date(ts).toLocaleTimeString() : "";
 
   // --- custom-title ---
-  if (entry.type === 'custom-title') {
-    const div = document.createElement('div');
-    div.className = 'jsonl-entry jsonl-meta-entry';
-    div.innerHTML = '<span class="jsonl-meta-icon">T</span> Title set: <strong>' + escapeHtml(entry.customTitle || '') + '</strong>';
+  if (entry.type === "custom-title") {
+    const div = document.createElement("div");
+    div.className = "jsonl-entry jsonl-meta-entry";
+    div.innerHTML =
+      '<span class="jsonl-meta-icon">T</span> Title set: <strong>' +
+      escapeHtml(entry.customTitle || "") +
+      "</strong>";
     return div;
   }
 
   // --- system entries ---
-  if (entry.type === 'system') {
-    const div = document.createElement('div');
-    div.className = 'jsonl-entry jsonl-meta-entry';
-    if (entry.subtype === 'turn_duration') {
-      div.innerHTML = '<span class="jsonl-meta-icon">&#9201;</span> Turn duration: <strong>' + formatDuration(entry.durationMs) + '</strong>'
-        + (timeStr ? ' <span class="jsonl-ts">' + timeStr + '</span>' : '');
-    } else if (entry.subtype === 'local_command') {
-      const cmdMatch = (entry.content || '').match(/<command-name>(.*?)<\/command-name>/);
-      const cmd = cmdMatch ? cmdMatch[1] : entry.content || 'unknown';
-      div.innerHTML = '<span class="jsonl-meta-icon">$</span> Command: <code class="jsonl-inline-code">' + escapeHtml(cmd) + '</code>'
-        + (timeStr ? ' <span class="jsonl-ts">' + timeStr + '</span>' : '');
+  if (entry.type === "system") {
+    const div = document.createElement("div");
+    div.className = "jsonl-entry jsonl-meta-entry";
+    if (entry.subtype === "turn_duration") {
+      div.innerHTML =
+        '<span class="jsonl-meta-icon">&#9201;</span> Turn duration: <strong>' +
+        formatDuration(entry.durationMs) +
+        "</strong>" +
+        (timeStr ? ' <span class="jsonl-ts">' + timeStr + "</span>" : "");
+    } else if (entry.subtype === "local_command") {
+      const cmdMatch = (entry.content || "").match(
+        /<command-name>(.*?)<\/command-name>/,
+      );
+      const cmd = cmdMatch ? cmdMatch[1] : entry.content || "unknown";
+      div.innerHTML =
+        '<span class="jsonl-meta-icon">$</span> Command: <code class="jsonl-inline-code">' +
+        escapeHtml(cmd) +
+        "</code>" +
+        (timeStr ? ' <span class="jsonl-ts">' + timeStr + "</span>" : "");
     } else {
       return null;
     }
@@ -1842,18 +2199,24 @@ function renderJsonlEntry(entry) {
   }
 
   // --- progress entries ---
-  if (entry.type === 'progress') {
+  if (entry.type === "progress") {
     const data = entry.data;
-    if (!data || typeof data !== 'object') return null;
+    if (!data || typeof data !== "object") return null;
     const dt = data.type;
-    if (dt === 'bash_progress') {
-      const div = document.createElement('div');
-      div.className = 'jsonl-entry jsonl-meta-entry';
-      const elapsed = data.elapsedTimeSeconds ? ` (${data.elapsedTimeSeconds}s, ${data.totalLines || 0} lines)` : '';
-      div.innerHTML = '<span class="jsonl-meta-icon">&#9658;</span> Bash output' + escapeHtml(elapsed);
+    if (dt === "bash_progress") {
+      const div = document.createElement("div");
+      div.className = "jsonl-entry jsonl-meta-entry";
+      const elapsed = data.elapsedTimeSeconds
+        ? ` (${data.elapsedTimeSeconds}s, ${data.totalLines || 0} lines)`
+        : "";
+      div.innerHTML =
+        '<span class="jsonl-meta-icon">&#9658;</span> Bash output' +
+        escapeHtml(elapsed);
       if (data.output || data.fullOutput) {
-        const output = data.fullOutput || data.output || '';
-        div.appendChild(makeCollapsible('jsonl-tool-result', 'Output', output, false));
+        const output = data.fullOutput || data.output || "";
+        div.appendChild(
+          makeCollapsible("jsonl-tool-result", "Output", output, false),
+        );
       }
       return div;
     }
@@ -1865,55 +2228,75 @@ function renderJsonlEntry(entry) {
   let role = null;
   let contentBlocks = null;
 
-  if (entry.type === 'user' || (entry.type === 'message' && entry.role === 'user')) {
-    role = 'user';
+  if (
+    entry.type === "user" ||
+    (entry.type === "message" && entry.role === "user")
+  ) {
+    role = "user";
     contentBlocks = entry.message?.content || entry.content;
-  } else if (entry.type === 'assistant' || (entry.type === 'message' && entry.role === 'assistant')) {
-    role = 'assistant';
+  } else if (
+    entry.type === "assistant" ||
+    (entry.type === "message" && entry.role === "assistant")
+  ) {
+    role = "assistant";
     contentBlocks = entry.message?.content || entry.content;
   } else {
     return null;
   }
 
   if (!contentBlocks) return null;
-  if (typeof contentBlocks === 'string') {
-    contentBlocks = [{ type: 'text', text: contentBlocks }];
+  if (typeof contentBlocks === "string") {
+    contentBlocks = [{ type: "text", text: contentBlocks }];
   }
   if (!Array.isArray(contentBlocks)) return null;
 
-  const div = document.createElement('div');
-  div.className = 'jsonl-entry ' + (role === 'user' ? 'jsonl-user' : 'jsonl-assistant');
+  const div = document.createElement("div");
+  div.className =
+    "jsonl-entry " + (role === "user" ? "jsonl-user" : "jsonl-assistant");
 
-  const labelRow = document.createElement('div');
-  labelRow.className = 'jsonl-role-label';
-  labelRow.textContent = role === 'user' ? 'User' : 'Assistant';
+  const labelRow = document.createElement("div");
+  labelRow.className = "jsonl-role-label";
+  labelRow.textContent = role === "user" ? "User" : "Assistant";
   if (timeStr) {
-    const tsSpan = document.createElement('span');
-    tsSpan.className = 'jsonl-ts';
+    const tsSpan = document.createElement("span");
+    tsSpan.className = "jsonl-ts";
     tsSpan.textContent = timeStr;
     labelRow.appendChild(tsSpan);
   }
   div.appendChild(labelRow);
 
   for (const block of contentBlocks) {
-    if (block.type === 'thinking' && block.thinking) {
-      div.appendChild(makeCollapsible('jsonl-thinking', 'Thinking', block.thinking, false));
-    } else if (block.type === 'text' && block.text) {
-      const textEl = document.createElement('div');
-      textEl.className = 'jsonl-text';
+    if (block.type === "thinking" && block.thinking) {
+      div.appendChild(
+        makeCollapsible("jsonl-thinking", "Thinking", block.thinking, false),
+      );
+    } else if (block.type === "text" && block.text) {
+      const textEl = document.createElement("div");
+      textEl.className = "jsonl-text";
       textEl.innerHTML = renderJsonlText(block.text);
       div.appendChild(textEl);
-    } else if (block.type === 'tool_use') {
-      div.appendChild(makeCollapsible('jsonl-tool-call',
-        'Tool: ' + (block.name || 'unknown'),
-        typeof block.input === 'string' ? block.input : block.input,
-        false));
-    } else if (block.type === 'tool_result') {
-      const resultContent = block.content || block.output || '';
-      div.appendChild(makeCollapsible('jsonl-tool-result',
-        'Tool Result' + (block.tool_use_id ? ' (' + block.tool_use_id.slice(0, 12) + '...)' : ''),
-        resultContent,
-        false));
+    } else if (block.type === "tool_use") {
+      div.appendChild(
+        makeCollapsible(
+          "jsonl-tool-call",
+          "Tool: " + (block.name || "unknown"),
+          typeof block.input === "string" ? block.input : block.input,
+          false,
+        ),
+      );
+    } else if (block.type === "tool_result") {
+      const resultContent = block.content || block.output || "";
+      div.appendChild(
+        makeCollapsible(
+          "jsonl-tool-result",
+          "Tool Result" +
+            (block.tool_use_id
+              ? " (" + block.tool_use_id.slice(0, 12) + "...)"
+              : ""),
+          resultContent,
+          false,
+        ),
+      );
     }
   }
 
@@ -1923,17 +2306,20 @@ function renderJsonlEntry(entry) {
 async function showJsonlViewer(session) {
   const result = await window.api.readSessionJsonl(session.sessionId);
   hideAllViewers();
-  placeholder.style.display = 'none';
-  terminalArea.style.display = 'none';
-  jsonlViewer.style.display = 'flex';
+  placeholder.style.display = "none";
+  terminalArea.style.display = "none";
+  jsonlViewer.style.display = "flex";
 
   const displayName = session.name || session.summary || session.sessionId;
   jsonlViewerTitle.textContent = displayName;
   jsonlViewerSessionId.textContent = session.sessionId;
-  jsonlViewerBody.innerHTML = '';
+  jsonlViewerBody.innerHTML = "";
 
   if (result.error) {
-    jsonlViewerBody.innerHTML = '<div class="plans-empty">Error loading messages: ' + escapeHtml(result.error) + '</div>';
+    jsonlViewerBody.innerHTML =
+      '<div class="plans-empty">Error loading messages: ' +
+      escapeHtml(result.error) +
+      "</div>";
     return;
   }
 
@@ -1948,16 +2334,18 @@ async function showJsonlViewer(session) {
   }
 
   if (rendered === 0) {
-    jsonlViewerBody.innerHTML = '<div class="plans-empty">No messages found in this session.</div>';
+    jsonlViewerBody.innerHTML =
+      '<div class="plans-empty">No messages found in this session.</div>';
   }
 }
 
 // --- Stats ---
 async function loadStats() {
   const stats = await window.api.getStats();
-  statsViewerBody.innerHTML = '';
+  statsViewerBody.innerHTML = "";
   if (!stats) {
-    statsViewerBody.innerHTML = '<div class="plans-empty">No stats data found. Run some Claude sessions first.</div>';
+    statsViewerBody.innerHTML =
+      '<div class="plans-empty">No stats data found. Run some Claude sessions first.</div>';
     return;
   }
   // dailyActivity may be an array of {date, messageCount, ...} or an object
@@ -1969,16 +2357,19 @@ async function loadStats() {
     }
   } else {
     for (const [date, data] of Object.entries(rawDaily)) {
-      dailyMap[date] = typeof data === 'number' ? data : (data?.messageCount || data?.messages || data?.count || 0);
+      dailyMap[date] =
+        typeof data === "number"
+          ? data
+          : data?.messageCount || data?.messages || data?.count || 0;
     }
   }
   buildHeatmap(dailyMap);
   buildDailyBarChart(stats);
   buildStatsSummary(stats, dailyMap);
 
-  const notice = document.createElement('div');
-  notice.className = 'stats-notice';
-  const lastDate = stats.lastComputedDate || 'unknown';
+  const notice = document.createElement("div");
+  notice.className = "stats-notice";
+  const lastDate = stats.lastComputedDate || "unknown";
   notice.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px;margin-right:6px;flex-shrink:0"><circle cx="8" cy="8" r="7"/><line x1="8" y1="5" x2="8" y2="9"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>Data sourced from Claude\u2019s stats cache (last updated ${escapeHtml(lastDate)}). Run <code>/stats</code> in a Claude session to refresh.`;
   statsViewerBody.appendChild(notice);
 }
@@ -1992,7 +2383,8 @@ function buildDailyBarChart(stats) {
   if (Array.isArray(rawTokens)) {
     for (const entry of rawTokens) {
       let total = 0;
-      for (const count of Object.values(entry.tokensByModel || {})) total += count;
+      for (const count of Object.values(entry.tokensByModel || {}))
+        total += count;
       tokenMap[entry.date] = total;
     }
   }
@@ -2011,47 +2403,51 @@ function buildDailyBarChart(stats) {
     days.push(d.toISOString().slice(0, 10));
   }
 
-  const tokenValues = days.map(d => tokenMap[d] || 0);
-  const msgValues = days.map(d => activityMap[d]?.messageCount || 0);
-  const toolValues = days.map(d => activityMap[d]?.toolCallCount || 0);
+  const tokenValues = days.map((d) => tokenMap[d] || 0);
+  const msgValues = days.map((d) => activityMap[d]?.messageCount || 0);
+  const toolValues = days.map((d) => activityMap[d]?.toolCallCount || 0);
   const maxTokens = Math.max(...tokenValues, 1);
   const maxMsgs = Math.max(...msgValues, 1);
 
-  const container = document.createElement('div');
-  container.className = 'daily-chart-container';
+  const container = document.createElement("div");
+  container.className = "daily-chart-container";
 
-  const title = document.createElement('div');
-  title.className = 'daily-chart-title';
-  title.textContent = 'Last 30 days';
+  const title = document.createElement("div");
+  title.className = "daily-chart-title";
+  title.textContent = "Last 30 days";
   container.appendChild(title);
 
-  const chart = document.createElement('div');
-  chart.className = 'daily-chart';
+  const chart = document.createElement("div");
+  chart.className = "daily-chart";
 
   for (let i = 0; i < days.length; i++) {
-    const col = document.createElement('div');
-    col.className = 'daily-chart-col';
+    const col = document.createElement("div");
+    col.className = "daily-chart-col";
 
-    const bar = document.createElement('div');
-    bar.className = 'daily-chart-bar';
+    const bar = document.createElement("div");
+    bar.className = "daily-chart-bar";
     const pct = (tokenValues[i] / maxTokens) * 100;
-    bar.style.height = Math.max(pct, tokenValues[i] > 0 ? 3 : 0) + '%';
+    bar.style.height = Math.max(pct, tokenValues[i] > 0 ? 3 : 0) + "%";
 
     const msgPct = (msgValues[i] / maxMsgs) * 100;
-    const msgBar = document.createElement('div');
-    msgBar.className = 'daily-chart-bar-msgs';
-    msgBar.style.height = Math.max(msgPct, msgValues[i] > 0 ? 3 : 0) + '%';
+    const msgBar = document.createElement("div");
+    msgBar.className = "daily-chart-bar-msgs";
+    msgBar.style.height = Math.max(msgPct, msgValues[i] > 0 ? 3 : 0) + "%";
 
     const d = new Date(days[i]);
-    const dayLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const dayLabel = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
     let tokStr;
-    if (tokenValues[i] >= 1e6) tokStr = (tokenValues[i] / 1e6).toFixed(1) + 'M';
-    else if (tokenValues[i] >= 1e3) tokStr = (tokenValues[i] / 1e3).toFixed(1) + 'K';
+    if (tokenValues[i] >= 1e6) tokStr = (tokenValues[i] / 1e6).toFixed(1) + "M";
+    else if (tokenValues[i] >= 1e3)
+      tokStr = (tokenValues[i] / 1e3).toFixed(1) + "K";
     else tokStr = tokenValues[i].toString();
     col.title = `${dayLabel}\n${tokStr} tokens\n${msgValues[i]} messages\n${toolValues[i]} tool calls`;
 
-    const label = document.createElement('div');
-    label.className = 'daily-chart-label';
+    const label = document.createElement("div");
+    label.className = "daily-chart-label";
     label.textContent = d.getDate().toString();
 
     col.appendChild(bar);
@@ -2063,17 +2459,18 @@ function buildDailyBarChart(stats) {
   container.appendChild(chart);
 
   // Legend
-  const legend = document.createElement('div');
-  legend.className = 'daily-chart-legend';
-  legend.innerHTML = '<span class="daily-chart-legend-dot tokens"></span> Tokens <span class="daily-chart-legend-dot msgs"></span> Messages';
+  const legend = document.createElement("div");
+  legend.className = "daily-chart-legend";
+  legend.innerHTML =
+    '<span class="daily-chart-legend-dot tokens"></span> Tokens <span class="daily-chart-legend-dot msgs"></span> Messages';
   container.appendChild(legend);
 
   statsViewerBody.appendChild(container);
 }
 
 function buildHeatmap(counts) {
-  const container = document.createElement('div');
-  container.className = 'heatmap-container';
+  const container = document.createElement("div");
+  container.className = "heatmap-container";
 
   // Generate 52 weeks of dates ending today
   const today = new Date();
@@ -2084,9 +2481,22 @@ function buildHeatmap(counts) {
   startDate.setDate(startDate.getDate() - (52 * 7 + dayOfWeek));
 
   // Month labels
-  const monthLabels = document.createElement('div');
-  monthLabels.className = 'heatmap-month-labels';
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthLabels = document.createElement("div");
+  monthLabels.className = "heatmap-month-labels";
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   let lastMonth = -1;
   const weekStarts = [];
   const d = new Date(startDate);
@@ -2102,44 +2512,46 @@ function buildHeatmap(counts) {
   for (let w = 0; w < weekStarts.length; w++) {
     const m = weekStarts[w].getMonth();
     if (m !== lastMonth) {
-      const label = document.createElement('span');
-      label.className = 'heatmap-month-label';
+      const label = document.createElement("span");
+      label.className = "heatmap-month-label";
       label.textContent = months[m];
-      label.style.position = 'absolute';
-      label.style.left = (w * colWidth) + 'px';
+      label.style.position = "absolute";
+      label.style.left = w * colWidth + "px";
       monthLabels.appendChild(label);
       lastMonth = m;
     }
   }
-  monthLabels.style.position = 'relative';
-  monthLabels.style.height = '16px';
+  monthLabels.style.position = "relative";
+  monthLabels.style.height = "16px";
   container.appendChild(monthLabels);
 
   // Grid wrapper (day labels + grid)
-  const wrapper = document.createElement('div');
-  wrapper.className = 'heatmap-grid-wrapper';
+  const wrapper = document.createElement("div");
+  wrapper.className = "heatmap-grid-wrapper";
 
   // Day labels
-  const dayLabels = document.createElement('div');
-  dayLabels.className = 'heatmap-day-labels';
-  const dayNames = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+  const dayLabels = document.createElement("div");
+  dayLabels.className = "heatmap-day-labels";
+  const dayNames = ["", "Mon", "", "Wed", "", "Fri", ""];
   for (const name of dayNames) {
-    const label = document.createElement('div');
-    label.className = 'heatmap-day-label';
+    const label = document.createElement("div");
+    label.className = "heatmap-day-label";
     label.textContent = name;
     dayLabels.appendChild(label);
   }
   wrapper.appendChild(dayLabels);
 
   // Quartile thresholds
-  const nonZero = Object.values(counts).filter(c => c > 0).sort((a, b) => a - b);
+  const nonZero = Object.values(counts)
+    .filter((c) => c > 0)
+    .sort((a, b) => a - b);
   const q1 = nonZero[Math.floor(nonZero.length * 0.25)] || 1;
   const q2 = nonZero[Math.floor(nonZero.length * 0.5)] || 2;
   const q3 = nonZero[Math.floor(nonZero.length * 0.75)] || 3;
 
   // Grid
-  const grid = document.createElement('div');
-  grid.className = 'heatmap-grid';
+  const grid = document.createElement("div");
+  grid.className = "heatmap-grid";
 
   const cursor = new Date(startDate);
   while (cursor <= endDate) {
@@ -2153,10 +2565,17 @@ function buildHeatmap(counts) {
       else level = 4;
     }
 
-    const cell = document.createElement('div');
+    const cell = document.createElement("div");
     cell.className = `heatmap-cell heatmap-level-${level}`;
-    const displayDate = cursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    cell.title = count > 0 ? `${displayDate}: ${count} messages` : `${displayDate}: No activity`;
+    const displayDate = cursor.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    cell.title =
+      count > 0
+        ? `${displayDate}: ${count} messages`
+        : `${displayDate}: No activity`;
     grid.appendChild(cell);
 
     cursor.setDate(cursor.getDate() + 1);
@@ -2166,20 +2585,20 @@ function buildHeatmap(counts) {
   container.appendChild(wrapper);
 
   // Legend
-  const legend = document.createElement('div');
-  legend.className = 'heatmap-legend';
-  const lessLabel = document.createElement('span');
-  lessLabel.className = 'heatmap-legend-label';
-  lessLabel.textContent = 'Less';
+  const legend = document.createElement("div");
+  legend.className = "heatmap-legend";
+  const lessLabel = document.createElement("span");
+  lessLabel.className = "heatmap-legend-label";
+  lessLabel.textContent = "Less";
   legend.appendChild(lessLabel);
   for (let i = 0; i <= 4; i++) {
-    const cell = document.createElement('div');
+    const cell = document.createElement("div");
     cell.className = `heatmap-legend-cell heatmap-level-${i}`;
     legend.appendChild(cell);
   }
-  const moreLabel = document.createElement('span');
-  moreLabel.className = 'heatmap-legend-label';
-  moreLabel.textContent = 'More';
+  const moreLabel = document.createElement("span");
+  moreLabel.className = "heatmap-legend-label";
+  moreLabel.textContent = "More";
   legend.appendChild(moreLabel);
   container.appendChild(legend);
 
@@ -2219,10 +2638,11 @@ function calculateStreak(counts) {
 }
 
 function buildStatsSummary(stats, dailyMap) {
-  const summaryEl = document.createElement('div');
-  summaryEl.className = 'stats-summary';
+  const summaryEl = document.createElement("div");
+  summaryEl.className = "stats-summary";
 
-  const { current: currentStreak, longest: longestStreak } = calculateStreak(dailyMap);
+  const { current: currentStreak, longest: longestStreak } =
+    calculateStreak(dailyMap);
 
   // Total messages from map
   let totalMessages = 0;
@@ -2240,28 +2660,28 @@ function buildStatsSummary(stats, dailyMap) {
   const models = stats.modelUsage || {};
 
   const cards = [
-    { value: totalSessions.toLocaleString(), label: 'Total Sessions' },
-    { value: totalMessages.toLocaleString(), label: 'Total Messages' },
-    { value: currentStreak + 'd', label: 'Current Streak' },
-    { value: longestStreak + 'd', label: 'Longest Streak' },
+    { value: totalSessions.toLocaleString(), label: "Total Sessions" },
+    { value: totalMessages.toLocaleString(), label: "Total Messages" },
+    { value: currentStreak + "d", label: "Current Streak" },
+    { value: longestStreak + "d", label: "Longest Streak" },
   ];
 
   for (const [model, usage] of Object.entries(models)) {
-    const shortName = model.replace(/^claude-/, '').replace(/-\d{8}$/, '');
+    const shortName = model.replace(/^claude-/, "").replace(/-\d{8}$/, "");
     const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
     const label = shortName;
     // Format token count in millions/thousands
     let valueStr;
-    if (tokens >= 1e9) valueStr = (tokens / 1e9).toFixed(1) + 'B';
-    else if (tokens >= 1e6) valueStr = (tokens / 1e6).toFixed(1) + 'M';
-    else if (tokens >= 1e3) valueStr = (tokens / 1e3).toFixed(1) + 'K';
+    if (tokens >= 1e9) valueStr = (tokens / 1e9).toFixed(1) + "B";
+    else if (tokens >= 1e6) valueStr = (tokens / 1e6).toFixed(1) + "M";
+    else if (tokens >= 1e3) valueStr = (tokens / 1e3).toFixed(1) + "K";
     else valueStr = tokens.toLocaleString();
-    cards.push({ value: valueStr, label: label + ' tokens' });
+    cards.push({ value: valueStr, label: label + " tokens" });
   }
 
   for (const card of cards) {
-    const el = document.createElement('div');
-    el.className = 'stat-card';
+    const el = document.createElement("div");
+    el.className = "stat-card";
     el.innerHTML = `<span class="stat-card-value">${escapeHtml(card.value)}</span><span class="stat-card-label">${escapeHtml(card.label)}</span>`;
     summaryEl.appendChild(el);
   }
@@ -2279,11 +2699,11 @@ async function loadMemories() {
 
 function renderMemories(memories) {
   memories = memories || cachedMemories;
-  memoryContent.innerHTML = '';
+  memoryContent.innerHTML = "";
   if (memories.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'plans-empty';
-    empty.textContent = 'No memory files found.';
+    const empty = document.createElement("div");
+    empty.className = "plans-empty";
+    empty.textContent = "No memory files found.";
     memoryContent.appendChild(empty);
     return;
   }
@@ -2293,30 +2713,30 @@ function renderMemories(memories) {
 }
 
 function buildMemoryItem(mem) {
-  const item = document.createElement('div');
-  item.className = 'session-item memory-item';
+  const item = document.createElement("div");
+  item.className = "session-item memory-item";
 
-  const row = document.createElement('div');
-  row.className = 'session-row';
+  const row = document.createElement("div");
+  row.className = "session-row";
 
-  const info = document.createElement('div');
-  info.className = 'session-info';
+  const info = document.createElement("div");
+  info.className = "session-info";
 
-  const titleEl = document.createElement('div');
-  titleEl.className = 'session-summary';
+  const titleEl = document.createElement("div");
+  titleEl.className = "session-summary";
 
-  const badge = document.createElement('span');
+  const badge = document.createElement("span");
   badge.className = `memory-type-badge type-${mem.type}`;
   badge.textContent = mem.type;
   titleEl.appendChild(badge);
   titleEl.appendChild(document.createTextNode(mem.label));
 
-  const filenameEl = document.createElement('div');
-  filenameEl.className = 'session-id';
+  const filenameEl = document.createElement("div");
+  filenameEl.className = "session-id";
   filenameEl.textContent = mem.filename;
 
-  const metaEl = document.createElement('div');
-  metaEl.className = 'session-meta';
+  const metaEl = document.createElement("div");
+  metaEl.className = "session-meta";
   metaEl.textContent = formatDate(new Date(mem.modified));
 
   info.appendChild(titleEl);
@@ -2325,30 +2745,34 @@ function buildMemoryItem(mem) {
   row.appendChild(info);
   item.appendChild(row);
 
-  item.addEventListener('click', () => openMemory(mem));
+  item.addEventListener("click", () => openMemory(mem));
   return item;
 }
 
 async function openMemory(mem) {
   // Mark active in sidebar
-  memoryContent.querySelectorAll('.memory-item.active').forEach(el => el.classList.remove('active'));
-  const items = memoryContent.querySelectorAll('.memory-item');
-  items.forEach(el => {
-    if (el.querySelector('.session-id')?.textContent === mem.filename &&
-        el.querySelector('.session-summary')?.textContent.includes(mem.label)) {
-      el.classList.add('active');
+  memoryContent
+    .querySelectorAll(".memory-item.active")
+    .forEach((el) => el.classList.remove("active"));
+  const items = memoryContent.querySelectorAll(".memory-item");
+  items.forEach((el) => {
+    if (
+      el.querySelector(".session-id")?.textContent === mem.filename &&
+      el.querySelector(".session-summary")?.textContent.includes(mem.label)
+    ) {
+      el.classList.add("active");
     }
   });
 
   const content = await window.api.readMemory(mem.filePath);
 
   // Show memory viewer in main area
-  placeholder.style.display = 'none';
-  terminalArea.style.display = 'none';
-  planViewer.style.display = 'none';
-  statsViewer.style.display = 'none';
-  settingsViewer.style.display = 'none';
-  memoryViewer.style.display = 'flex';
+  placeholder.style.display = "none";
+  terminalArea.style.display = "none";
+  planViewer.style.display = "none";
+  statsViewer.style.display = "none";
+  settingsViewer.style.display = "none";
+  memoryViewer.style.display = "flex";
 
   memoryViewerTitle.textContent = `${mem.label} — ${mem.filename}`;
   memoryViewerFilename.textContent = mem.filePath;
@@ -2382,25 +2806,39 @@ async function forkSession(session, project) {
 
 function showNewSessionPopover(project, anchorEl) {
   // Remove any existing popover
-  document.querySelectorAll('.new-session-popover').forEach(el => el.remove());
+  document
+    .querySelectorAll(".new-session-popover")
+    .forEach((el) => el.remove());
 
-  const popover = document.createElement('div');
-  popover.className = 'new-session-popover';
+  const popover = document.createElement("div");
+  popover.className = "new-session-popover";
 
-  const claudeBtn = document.createElement('button');
-  claudeBtn.className = 'popover-option';
-  claudeBtn.innerHTML = '<img src="https://claude.ai/favicon.ico" class="popover-option-icon claude-icon" alt=""> Claude';
-  claudeBtn.onclick = async () => { popover.remove(); launchNewSession(project, await resolveDefaultSessionOptions(project)); };
+  const claudeBtn = document.createElement("button");
+  claudeBtn.className = "popover-option";
+  claudeBtn.innerHTML =
+    '<img src="https://claude.ai/favicon.ico" class="popover-option-icon claude-icon" alt=""> Claude';
+  claudeBtn.onclick = async () => {
+    popover.remove();
+    launchNewSession(project, await resolveDefaultSessionOptions(project));
+  };
 
-  const claudeOptsBtn = document.createElement('button');
-  claudeOptsBtn.className = 'popover-option';
-  claudeOptsBtn.innerHTML = '<img src="https://claude.ai/favicon.ico" class="popover-option-icon claude-icon" alt=""> Claude (Configure...)';
-  claudeOptsBtn.onclick = () => { popover.remove(); showNewSessionDialog(project); };
+  const claudeOptsBtn = document.createElement("button");
+  claudeOptsBtn.className = "popover-option";
+  claudeOptsBtn.innerHTML =
+    '<img src="https://claude.ai/favicon.ico" class="popover-option-icon claude-icon" alt=""> Claude (Configure...)';
+  claudeOptsBtn.onclick = () => {
+    popover.remove();
+    showNewSessionDialog(project);
+  };
 
-  const termBtn = document.createElement('button');
-  termBtn.className = 'popover-option popover-option-terminal';
-  termBtn.innerHTML = '<span class="popover-option-icon terminal-icon">&gt;_</span> Terminal';
-  termBtn.onclick = () => { popover.remove(); launchTerminalSession(project); };
+  const termBtn = document.createElement("button");
+  termBtn.className = "popover-option popover-option-terminal";
+  termBtn.innerHTML =
+    '<span class="popover-option-icon terminal-icon">&gt;_</span> Terminal';
+  termBtn.onclick = () => {
+    popover.remove();
+    launchTerminalSession(project);
+  };
 
   popover.appendChild(claudeBtn);
   popover.appendChild(claudeOptsBtn);
@@ -2411,20 +2849,20 @@ function showNewSessionPopover(project, anchorEl) {
   const rect = anchorEl.getBoundingClientRect();
   const popoverHeight = popover.offsetHeight;
   if (rect.bottom + 4 + popoverHeight > window.innerHeight) {
-    popover.style.top = (rect.top - popoverHeight - 4) + 'px';
+    popover.style.top = rect.top - popoverHeight - 4 + "px";
   } else {
-    popover.style.top = (rect.bottom + 4) + 'px';
+    popover.style.top = rect.bottom + 4 + "px";
   }
-  popover.style.left = rect.left + 'px';
+  popover.style.left = rect.left + "px";
 
   // Close on click outside
   function onClickOutside(e) {
     if (!popover.contains(e.target) && e.target !== anchorEl) {
       popover.remove();
-      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener("mousedown", onClickOutside);
     }
   }
-  setTimeout(() => document.addEventListener('mousedown', onClickOutside), 0);
+  setTimeout(() => document.addEventListener("mousedown", onClickOutside), 0);
 }
 
 async function launchTerminalSession(project) {
@@ -2432,8 +2870,8 @@ async function launchTerminalSession(project) {
   const projectPath = project.projectPath;
   const session = {
     sessionId,
-    summary: 'Terminal',
-    firstPrompt: '',
+    summary: "Terminal",
+    firstPrompt: "",
     projectPath,
     name: null,
     starred: 0,
@@ -2441,17 +2879,17 @@ async function launchTerminalSession(project) {
     messageCount: 0,
     modified: new Date().toISOString(),
     created: new Date().toISOString(),
-    type: 'terminal',
+    type: "terminal",
   };
 
   // Track as pending
-  const folder = projectPath.replace(/[/_]/g, '-').replace(/^-/, '-');
+  const folder = projectPath.replace(/[/_]/g, "-").replace(/^-/, "-");
   pendingSessions.set(sessionId, { session, projectPath, folder });
 
   // Inject into cached project data
   sessionMap.set(sessionId, session);
   for (const projList of [cachedProjects, cachedAllProjects]) {
-    let proj = projList.find(p => p.projectPath === projectPath);
+    let proj = projList.find((p) => p.projectPath === projectPath);
     if (!proj) {
       proj = { folder, projectPath, sessions: [] };
       projList.unshift(proj);
@@ -2461,18 +2899,22 @@ async function launchTerminalSession(project) {
   renderProjects(showArchived ? cachedAllProjects : cachedProjects);
 
   // Update sidebar
-  document.querySelectorAll('.session-item.active').forEach(el => el.classList.remove('active'));
+  document
+    .querySelectorAll(".session-item.active")
+    .forEach((el) => el.classList.remove("active"));
   const item = document.querySelector(`[data-session-id="${sessionId}"]`);
-  if (item) item.classList.add('active');
-  document.querySelectorAll('.terminal-container').forEach(el => el.classList.remove('visible'));
-  placeholder.style.display = 'none';
+  if (item) item.classList.add("active");
+  document
+    .querySelectorAll(".terminal-container")
+    .forEach((el) => el.classList.remove("visible"));
+  placeholder.style.display = "none";
   hidePlanViewer();
   setActiveSession(sessionId);
   showTerminalHeader(session);
 
   // Create terminal
-  const container = document.createElement('div');
-  container.className = 'terminal-container visible';
+  const container = document.createElement("div");
+  container.className = "terminal-container visible";
   terminalsEl.appendChild(container);
 
   const terminal = new Terminal({
@@ -2486,14 +2928,22 @@ async function launchTerminalSession(project) {
 
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.loadAddon(new WebLinksAddon((_event, url) => window.api.openExternal(url)));
+  terminal.loadAddon(
+    new WebLinksAddon((_event, url) => window.api.openExternal(url)),
+  );
   terminal.open(container);
   fitAddon.fit();
 
-  const entry = { terminal, element: container, fitAddon, session, closed: false };
+  const entry = {
+    terminal,
+    element: container,
+    fitAddon,
+    session,
+    closed: false,
+  };
   openSessions.set(sessionId, entry);
 
-  terminal.onData(data => {
+  terminal.onData((data) => {
     window.api.sendInput(session.sessionId, data);
   });
   attachTerminalKeyHandler(terminal, () => session.sessionId);
@@ -2502,16 +2952,18 @@ async function launchTerminalSession(project) {
     window.api.resizeTerminal(session.sessionId, cols, rows);
   });
 
-  terminal.onTitleChange(title => {
+  terminal.onTitleChange((title) => {
     entry.ptyTitle = title;
     if (activeSessionId === session.sessionId) updatePtyTitle();
   });
 
   terminal.onBell(() => {
-    markUnread(session.sessionId, '\x07');
+    markUnread(session.sessionId, "\x07");
   });
 
-  const result = await window.api.openTerminal(sessionId, projectPath, true, { type: 'terminal' });
+  const result = await window.api.openTerminal(sessionId, projectPath, true, {
+    type: "terminal",
+  });
   if (!result.ok) {
     terminal.write(`\r\nError: ${result.error}\r\n`);
     entry.closed = true;
@@ -2526,57 +2978,77 @@ async function launchTerminalSession(project) {
 async function showNewSessionDialog(project) {
   const effective = await window.api.getEffectiveSettings(project.projectPath);
 
-  const overlay = document.createElement('div');
-  overlay.className = 'new-session-overlay';
+  const overlay = document.createElement("div");
+  overlay.className = "new-session-overlay";
 
-  const dialog = document.createElement('div');
-  dialog.className = 'new-session-dialog';
+  const dialog = document.createElement("div");
+  dialog.className = "new-session-dialog";
 
   let selectedMode = effective.permissionMode || null;
   let dangerousSkip = effective.dangerouslySkipPermissions || false;
 
   const modes = [
-    { value: null, label: 'Default', desc: 'Prompt for all actions' },
-    { value: 'acceptEdits', label: 'Accept Edits', desc: 'Auto-accept file edits, prompt for others' },
-    { value: 'plan', label: 'Plan Mode', desc: 'Read-only exploration, no writes' },
-    { value: 'dontAsk', label: "Don't Ask", desc: 'Auto-deny tools not explicitly allowed' },
-    { value: 'bypassPermissions', label: 'Bypass', desc: 'Auto-accept all tool calls' },
+    { value: null, label: "Default", desc: "Prompt for all actions" },
+    {
+      value: "acceptEdits",
+      label: "Accept Edits",
+      desc: "Auto-accept file edits, prompt for others",
+    },
+    {
+      value: "plan",
+      label: "Plan Mode",
+      desc: "Read-only exploration, no writes",
+    },
+    {
+      value: "dontAsk",
+      label: "Don't Ask",
+      desc: "Auto-deny tools not explicitly allowed",
+    },
+    {
+      value: "bypassPermissions",
+      label: "Bypass",
+      desc: "Auto-accept all tool calls",
+    },
   ];
 
   function renderModeGrid() {
-    return modes.map(m => {
-      const isSelected = !dangerousSkip && selectedMode === m.value;
-      return `<button class="permission-option${isSelected ? ' selected' : ''}" data-mode="${m.value}"><span class="perm-name">${m.label}</span><span class="perm-desc">${m.desc}</span></button>`;
-    }).join('') +
-    `<button class="permission-option dangerous${dangerousSkip ? ' selected' : ''}" data-mode="dangerous-skip"><span class="perm-name">Dangerous Skip</span><span class="perm-desc">Skip all safety prompts (use with caution)</span></button>`;
+    return (
+      modes
+        .map((m) => {
+          const isSelected = !dangerousSkip && selectedMode === m.value;
+          return `<button class="permission-option${isSelected ? " selected" : ""}" data-mode="${m.value}"><span class="perm-name">${m.label}</span><span class="perm-desc">${m.desc}</span></button>`;
+        })
+        .join("") +
+      `<button class="permission-option dangerous${dangerousSkip ? " selected" : ""}" data-mode="dangerous-skip"><span class="perm-name">Dangerous Skip</span><span class="perm-desc">Skip all safety prompts (use with caution)</span></button>`
+    );
   }
 
   dialog.innerHTML = `
-    <h3>New Session — ${escapeHtml(project.projectPath.split('/').filter(Boolean).slice(-2).join('/'))}</h3>
+    <h3>New Session — ${escapeHtml(project.projectPath.split("/").filter(Boolean).slice(-2).join("/"))}</h3>
     <div class="settings-field">
       <div class="settings-label">Permission Mode</div>
       <div class="permission-grid" id="nsd-mode-grid">${renderModeGrid()}</div>
     </div>
     <div class="settings-field">
       <div class="settings-checkbox-row">
-        <input type="checkbox" id="nsd-worktree" ${effective.worktree ? 'checked' : ''}>
+        <input type="checkbox" id="nsd-worktree" ${effective.worktree ? "checked" : ""}>
         <label for="nsd-worktree">Worktree</label>
-        <input type="text" class="settings-input" id="nsd-worktree-name" placeholder="name (optional)" value="${escapeHtml(effective.worktreeName || '')}" style="width:160px;margin-left:8px;">
+        <input type="text" class="settings-input" id="nsd-worktree-name" placeholder="name (optional)" value="${escapeHtml(effective.worktreeName || "")}" style="width:160px;margin-left:8px;">
       </div>
     </div>
     <div class="settings-field">
       <div class="settings-checkbox-row">
-        <input type="checkbox" id="nsd-chrome" ${effective.chrome ? 'checked' : ''}>
+        <input type="checkbox" id="nsd-chrome" ${effective.chrome ? "checked" : ""}>
         <label for="nsd-chrome">Chrome</label>
       </div>
     </div>
     <div class="settings-field">
       <div class="settings-label">Pre-launch Command</div>
-      <input type="text" class="settings-input" id="nsd-pre-launch" placeholder="e.g. aws-vault exec profile --" value="${escapeHtml(effective.preLaunchCmd || '')}">
+      <input type="text" class="settings-input" id="nsd-pre-launch" placeholder="e.g. aws-vault exec profile --" value="${escapeHtml(effective.preLaunchCmd || "")}">
     </div>
     <div class="settings-field">
       <div class="settings-label">Add Directories (comma-separated)</div>
-      <input type="text" class="settings-input" id="nsd-add-dirs" placeholder="/path/to/dir1, /path/to/dir2" value="${escapeHtml(effective.addDirs || '')}">
+      <input type="text" class="settings-input" id="nsd-add-dirs" placeholder="/path/to/dir1, /path/to/dir2" value="${escapeHtml(effective.addDirs || "")}">
     </div>
     <div class="new-session-actions">
       <button class="new-session-cancel-btn">Cancel</button>
@@ -2588,17 +3060,17 @@ async function showNewSessionDialog(project) {
   document.body.appendChild(overlay);
 
   // Bind mode grid clicks
-  const modeGrid = dialog.querySelector('#nsd-mode-grid');
-  modeGrid.addEventListener('click', (e) => {
-    const btn = e.target.closest('.permission-option');
+  const modeGrid = dialog.querySelector("#nsd-mode-grid");
+  modeGrid.addEventListener("click", (e) => {
+    const btn = e.target.closest(".permission-option");
     if (!btn) return;
     const mode = btn.dataset.mode;
-    if (mode === 'dangerous-skip') {
+    if (mode === "dangerous-skip") {
       dangerousSkip = !dangerousSkip;
       if (dangerousSkip) selectedMode = null;
     } else {
       dangerousSkip = false;
-      selectedMode = mode === 'null' ? null : mode;
+      selectedMode = mode === "null" ? null : mode;
     }
     modeGrid.innerHTML = renderModeGrid();
   });
@@ -2614,80 +3086,101 @@ async function showNewSessionDialog(project) {
     } else if (selectedMode) {
       options.permissionMode = selectedMode;
     }
-    if (dialog.querySelector('#nsd-worktree').checked) {
+    if (dialog.querySelector("#nsd-worktree").checked) {
       options.worktree = true;
-      options.worktreeName = dialog.querySelector('#nsd-worktree-name').value.trim();
+      options.worktreeName = dialog
+        .querySelector("#nsd-worktree-name")
+        .value.trim();
     }
-    if (dialog.querySelector('#nsd-chrome').checked) {
+    if (dialog.querySelector("#nsd-chrome").checked) {
       options.chrome = true;
     }
-    const preLaunch = dialog.querySelector('#nsd-pre-launch').value.trim();
+    const preLaunch = dialog.querySelector("#nsd-pre-launch").value.trim();
     if (preLaunch) options.preLaunchCmd = preLaunch;
-    options.addDirs = dialog.querySelector('#nsd-add-dirs').value.trim();
+    options.addDirs = dialog.querySelector("#nsd-add-dirs").value.trim();
     close();
     launchNewSession(project, options);
   }
 
-  dialog.querySelector('.new-session-cancel-btn').onclick = close;
-  dialog.querySelector('.new-session-start-btn').onclick = start;
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  dialog.querySelector(".new-session-cancel-btn").onclick = close;
+  dialog.querySelector(".new-session-start-btn").onclick = start;
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+  });
 
   // Keyboard support
   function onKey(e) {
-    if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); }
-    if (e.key === 'Enter' && !e.target.matches('input')) { start(); document.removeEventListener('keydown', onKey); }
+    if (e.key === "Escape") {
+      close();
+      document.removeEventListener("keydown", onKey);
+    }
+    if (e.key === "Enter" && !e.target.matches("input")) {
+      start();
+      document.removeEventListener("keydown", onKey);
+    }
   }
-  document.addEventListener('keydown', onKey);
+  document.addEventListener("keydown", onKey);
 }
 
 // --- Settings viewer ---
 async function openSettingsViewer(scope, projectPath) {
-  const isProject = scope === 'project';
-  const settingsKey = isProject ? 'project:' + projectPath : 'global';
+  const isProject = scope === "project";
+  const settingsKey = isProject ? "project:" + projectPath : "global";
   const current = (await window.api.getSetting(settingsKey)) || {};
-  const globalSettings = isProject ? ((await window.api.getSetting('global')) || {}) : {};
+  const globalSettings = isProject
+    ? (await window.api.getSetting("global")) || {}
+    : {};
 
   const shortName = isProject
-    ? projectPath.split('/').filter(Boolean).slice(-2).join('/')
-    : 'Global';
+    ? projectPath.split("/").filter(Boolean).slice(-2).join("/")
+    : "Global";
 
-  settingsViewerTitle.textContent = (isProject ? 'Project Settings — ' : 'Global Settings — ') + shortName;
+  settingsViewerTitle.textContent =
+    (isProject ? "Project Settings — " : "Global Settings — ") + shortName;
 
   // Show settings viewer
-  placeholder.style.display = 'none';
-  terminalArea.style.display = 'none';
-  planViewer.style.display = 'none';
-  statsViewer.style.display = 'none';
-  memoryViewer.style.display = 'none';
-  settingsViewer.style.display = 'flex';
+  placeholder.style.display = "none";
+  terminalArea.style.display = "none";
+  planViewer.style.display = "none";
+  statsViewer.style.display = "none";
+  memoryViewer.style.display = "none";
+  settingsViewer.style.display = "flex";
 
   function useGlobalCheckbox(fieldName, label) {
-    if (!isProject) return '';
-    const useGlobal = current[fieldName] === undefined || current[fieldName] === null;
-    return `<label class="settings-use-global"><input type="checkbox" data-field="${fieldName}" class="use-global-cb" ${useGlobal ? 'checked' : ''}> Use global default</label>`;
+    if (!isProject) return "";
+    const useGlobal =
+      current[fieldName] === undefined || current[fieldName] === null;
+    return `<label class="settings-use-global"><input type="checkbox" data-field="${fieldName}" class="use-global-cb" ${useGlobal ? "checked" : ""}> Use global default</label>`;
   }
 
   function fieldValue(fieldName, fallback) {
-    if (isProject && (current[fieldName] === undefined || current[fieldName] === null)) {
-      return globalSettings[fieldName] !== undefined ? globalSettings[fieldName] : fallback;
+    if (
+      isProject &&
+      (current[fieldName] === undefined || current[fieldName] === null)
+    ) {
+      return globalSettings[fieldName] !== undefined
+        ? globalSettings[fieldName]
+        : fallback;
     }
     return current[fieldName] !== undefined ? current[fieldName] : fallback;
   }
 
   function fieldDisabled(fieldName) {
-    if (!isProject) return '';
-    return (current[fieldName] === undefined || current[fieldName] === null) ? 'disabled' : '';
+    if (!isProject) return "";
+    return current[fieldName] === undefined || current[fieldName] === null
+      ? "disabled"
+      : "";
   }
 
-  const permModeValue = fieldValue('permissionMode', '');
-  const worktreeValue = fieldValue('worktree', false);
-  const worktreeNameValue = fieldValue('worktreeName', '');
-  const chromeValue = fieldValue('chrome', false);
-  const preLaunchValue = fieldValue('preLaunchCmd', '');
-  const addDirsValue = fieldValue('addDirs', '');
-  const visCountValue = fieldValue('visibleSessionCount', 10);
-  const maxAgeValue = fieldValue('sessionMaxAgeDays', 3);
-  const themeValue = fieldValue('terminalTheme', 'switchboard');
+  const permModeValue = fieldValue("permissionMode", "");
+  const worktreeValue = fieldValue("worktree", false);
+  const worktreeNameValue = fieldValue("worktreeName", "");
+  const chromeValue = fieldValue("chrome", false);
+  const preLaunchValue = fieldValue("preLaunchCmd", "");
+  const addDirsValue = fieldValue("addDirs", "");
+  const visCountValue = fieldValue("visibleSessionCount", 10);
+  const maxAgeValue = fieldValue("sessionMaxAgeDays", 3);
+  const themeValue = fieldValue("terminalTheme", "switchboard");
 
   settingsViewerBody.innerHTML = `
     <div class="settings-form">
@@ -2698,24 +3191,24 @@ async function openSettingsViewer(scope, projectPath) {
         <div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Permission Mode</span>
-            ${useGlobalCheckbox('permissionMode')}
+            ${useGlobalCheckbox("permissionMode")}
           </div>
-          <select class="settings-select" id="sv-perm-mode" ${fieldDisabled('permissionMode')}>
+          <select class="settings-select" id="sv-perm-mode" ${fieldDisabled("permissionMode")}>
             <option value="">Default (none)</option>
-            <option value="acceptEdits" ${permModeValue === 'acceptEdits' ? 'selected' : ''}>Accept Edits</option>
-            <option value="plan" ${permModeValue === 'plan' ? 'selected' : ''}>Plan Mode</option>
-            <option value="dontAsk" ${permModeValue === 'dontAsk' ? 'selected' : ''}>Don't Ask</option>
-            <option value="bypassPermissions" ${permModeValue === 'bypassPermissions' ? 'selected' : ''}>Bypass</option>
+            <option value="acceptEdits" ${permModeValue === "acceptEdits" ? "selected" : ""}>Accept Edits</option>
+            <option value="plan" ${permModeValue === "plan" ? "selected" : ""}>Plan Mode</option>
+            <option value="dontAsk" ${permModeValue === "dontAsk" ? "selected" : ""}>Don't Ask</option>
+            <option value="bypassPermissions" ${permModeValue === "bypassPermissions" ? "selected" : ""}>Bypass</option>
           </select>
         </div>
 
         <div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Worktree</span>
-            ${useGlobalCheckbox('worktree')}
+            ${useGlobalCheckbox("worktree")}
           </div>
           <div class="settings-checkbox-row">
-            <input type="checkbox" id="sv-worktree" ${worktreeValue ? 'checked' : ''} ${fieldDisabled('worktree')}>
+            <input type="checkbox" id="sv-worktree" ${worktreeValue ? "checked" : ""} ${fieldDisabled("worktree")}>
             <label for="sv-worktree">Enable worktree for new sessions</label>
           </div>
         </div>
@@ -2723,18 +3216,18 @@ async function openSettingsViewer(scope, projectPath) {
         <div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Worktree Name</span>
-            ${useGlobalCheckbox('worktreeName')}
+            ${useGlobalCheckbox("worktreeName")}
           </div>
-          <input type="text" class="settings-input" id="sv-worktree-name" placeholder="auto" value="${escapeHtml(worktreeNameValue)}" ${fieldDisabled('worktreeName')}>
+          <input type="text" class="settings-input" id="sv-worktree-name" placeholder="auto" value="${escapeHtml(worktreeNameValue)}" ${fieldDisabled("worktreeName")}>
         </div>
 
         <div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Chrome</span>
-            ${useGlobalCheckbox('chrome')}
+            ${useGlobalCheckbox("chrome")}
           </div>
           <div class="settings-checkbox-row">
-            <input type="checkbox" id="sv-chrome" ${chromeValue ? 'checked' : ''} ${fieldDisabled('chrome')}>
+            <input type="checkbox" id="sv-chrome" ${chromeValue ? "checked" : ""} ${fieldDisabled("chrome")}>
             <label for="sv-chrome">Enable Chrome browser automation</label>
           </div>
         </div>
@@ -2742,9 +3235,9 @@ async function openSettingsViewer(scope, projectPath) {
         <div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Additional Directories</span>
-            ${useGlobalCheckbox('addDirs')}
+            ${useGlobalCheckbox("addDirs")}
           </div>
-          <input type="text" class="settings-input" id="sv-add-dirs" placeholder="/path/to/dir1, /path/to/dir2" value="${escapeHtml(addDirsValue)}" ${fieldDisabled('addDirs')}>
+          <input type="text" class="settings-input" id="sv-add-dirs" placeholder="/path/to/dir1, /path/to/dir2" value="${escapeHtml(addDirsValue)}" ${fieldDisabled("addDirs")}>
         </div>
       </div>
 
@@ -2755,10 +3248,10 @@ async function openSettingsViewer(scope, projectPath) {
         <div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Pre-launch Command</span>
-            ${useGlobalCheckbox('preLaunchCmd')}
+            ${useGlobalCheckbox("preLaunchCmd")}
           </div>
           <div class="settings-hint">Prepended to the claude command (e.g. "aws-vault exec profile --" or "source .env &&")</div>
-          <input type="text" class="settings-input" id="sv-pre-launch" placeholder="e.g. aws-vault exec profile --" value="${escapeHtml(preLaunchValue)}" ${fieldDisabled('preLaunchCmd')}>
+          <input type="text" class="settings-input" id="sv-pre-launch" placeholder="e.g. aws-vault exec profile --" value="${escapeHtml(preLaunchValue)}" ${fieldDisabled("preLaunchCmd")}>
         </div>
       </div>
 
@@ -2766,153 +3259,206 @@ async function openSettingsViewer(scope, projectPath) {
         <div class="settings-section-title">Application</div>
         <div class="settings-hint">Switchboard display and appearance settings.</div>
 
-        ${!isProject ? `<div class="settings-field">
+        ${
+          !isProject
+            ? `<div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Terminal Theme</span>
           </div>
           <select class="settings-select" id="sv-terminal-theme">
-            ${Object.entries(TERMINAL_THEMES).map(([key, t]) =>
-              `<option value="${key}" ${themeValue === key ? 'selected' : ''}>${escapeHtml(t.label)}</option>`
-            ).join('')}
+            ${Object.entries(TERMINAL_THEMES)
+              .map(
+                ([key, t]) =>
+                  `<option value="${key}" ${themeValue === key ? "selected" : ""}>${escapeHtml(t.label)}</option>`,
+              )
+              .join("")}
           </select>
-        </div>` : ''}
+        </div>`
+            : ""
+        }
 
         <div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Max Visible Sessions</span>
-            ${useGlobalCheckbox('visibleSessionCount')}
+            ${useGlobalCheckbox("visibleSessionCount")}
           </div>
           <div class="settings-hint">Show up to this many sessions before collapsing the rest behind "+N older"</div>
-          <input type="number" class="settings-input" id="sv-visible-count" min="1" max="100" value="${visCountValue}" ${fieldDisabled('visibleSessionCount')}>
+          <input type="number" class="settings-input" id="sv-visible-count" min="1" max="100" value="${visCountValue}" ${fieldDisabled("visibleSessionCount")}>
         </div>
 
-        ${!isProject ? `<div class="settings-field">
+        ${
+          !isProject
+            ? `<div class="settings-field">
           <div class="settings-field-header">
             <span class="settings-label">Hide Sessions Older Than (days)</span>
           </div>
           <div class="settings-hint">Sessions older than this are hidden behind "+N older" even if under the count limit</div>
           <input type="number" class="settings-input" id="sv-max-age" min="1" max="365" value="${maxAgeValue}">
-        </div>` : ''}
+        </div>`
+            : ""
+        }
       </div>
 
       <button class="settings-save-btn" id="sv-save-btn">Save Settings</button>
-      ${isProject ? '<button class="settings-remove-btn" id="sv-remove-btn">Remove Project</button>' : ''}
+      ${isProject ? '<button class="settings-remove-btn" id="sv-remove-btn">Remove Project</button>' : ""}
     </div>
   `;
 
   // Use-global checkboxes toggle field disabled state
-  settingsViewerBody.querySelectorAll('.use-global-cb').forEach(cb => {
-    cb.addEventListener('change', () => {
+  settingsViewerBody.querySelectorAll(".use-global-cb").forEach((cb) => {
+    cb.addEventListener("change", () => {
       const field = cb.dataset.field;
-      const inputs = settingsViewerBody.querySelectorAll(`#sv-perm-mode, #sv-worktree, #sv-worktree-name, #sv-add-dirs, #sv-visible-count`);
+      const inputs = settingsViewerBody.querySelectorAll(
+        `#sv-perm-mode, #sv-worktree, #sv-worktree-name, #sv-add-dirs, #sv-visible-count`,
+      );
       // Map field name to input element
       const fieldMap = {
-        permissionMode: 'sv-perm-mode',
-        worktree: 'sv-worktree',
-        worktreeName: 'sv-worktree-name',
-        chrome: 'sv-chrome',
-        preLaunchCmd: 'sv-pre-launch',
-        addDirs: 'sv-add-dirs',
-        visibleSessionCount: 'sv-visible-count',
+        permissionMode: "sv-perm-mode",
+        worktree: "sv-worktree",
+        worktreeName: "sv-worktree-name",
+        chrome: "sv-chrome",
+        preLaunchCmd: "sv-pre-launch",
+        addDirs: "sv-add-dirs",
+        visibleSessionCount: "sv-visible-count",
       };
-      const input = settingsViewerBody.querySelector('#' + fieldMap[field]);
+      const input = settingsViewerBody.querySelector("#" + fieldMap[field]);
       if (input) input.disabled = cb.checked;
     });
   });
 
   // Save button
-  settingsViewerBody.querySelector('#sv-save-btn').addEventListener('click', async () => {
-    const settings = {};
+  settingsViewerBody
+    .querySelector("#sv-save-btn")
+    .addEventListener("click", async () => {
+      const settings = {};
 
-    if (isProject) {
-      // Only save fields where "use global" is unchecked
-      settingsViewerBody.querySelectorAll('.use-global-cb').forEach(cb => {
-        if (!cb.checked) {
-          const field = cb.dataset.field;
-          const fieldMap = {
-            permissionMode: () => settingsViewerBody.querySelector('#sv-perm-mode').value || null,
-            worktree: () => settingsViewerBody.querySelector('#sv-worktree').checked,
-            worktreeName: () => settingsViewerBody.querySelector('#sv-worktree-name').value.trim(),
-            chrome: () => settingsViewerBody.querySelector('#sv-chrome').checked,
-            preLaunchCmd: () => settingsViewerBody.querySelector('#sv-pre-launch').value.trim(),
-            addDirs: () => settingsViewerBody.querySelector('#sv-add-dirs').value.trim(),
-            visibleSessionCount: () => parseInt(settingsViewerBody.querySelector('#sv-visible-count').value) || 10,
-          };
-          if (fieldMap[field]) settings[field] = fieldMap[field]();
-        }
-      });
-    } else {
-      settings.permissionMode = settingsViewerBody.querySelector('#sv-perm-mode').value || null;
-      settings.worktree = settingsViewerBody.querySelector('#sv-worktree').checked;
-      settings.worktreeName = settingsViewerBody.querySelector('#sv-worktree-name').value.trim();
-      settings.chrome = settingsViewerBody.querySelector('#sv-chrome').checked;
-      settings.preLaunchCmd = settingsViewerBody.querySelector('#sv-pre-launch').value.trim();
-      settings.addDirs = settingsViewerBody.querySelector('#sv-add-dirs').value.trim();
-      settings.visibleSessionCount = parseInt(settingsViewerBody.querySelector('#sv-visible-count').value) || 10;
-      settings.sessionMaxAgeDays = parseInt(settingsViewerBody.querySelector('#sv-max-age').value) || 3;
-      settings.terminalTheme = settingsViewerBody.querySelector('#sv-terminal-theme').value || 'switchboard';
-    }
-
-    // Preserve windowBounds and sidebarWidth if they exist
-    if (!isProject) {
-      const existing = (await window.api.getSetting('global')) || {};
-      if (existing.windowBounds) settings.windowBounds = existing.windowBounds;
-      if (existing.sidebarWidth) settings.sidebarWidth = existing.sidebarWidth;
-    }
-
-    await window.api.setSetting(settingsKey, settings);
-
-    // Update visibleSessionCount, sessionMaxAgeDays, and theme
-    if (!isProject) {
-      if (settings.visibleSessionCount) visibleSessionCount = settings.visibleSessionCount;
-      if (settings.sessionMaxAgeDays) sessionMaxAgeDays = settings.sessionMaxAgeDays;
-      if (settings.terminalTheme) {
-        currentThemeName = settings.terminalTheme;
-        TERMINAL_THEME = getTerminalTheme();
-        // Apply to all open terminals
-        for (const [, entry] of openSessions) {
-          entry.terminal.options.theme = TERMINAL_THEME;
-        }
+      if (isProject) {
+        // Only save fields where "use global" is unchecked
+        settingsViewerBody.querySelectorAll(".use-global-cb").forEach((cb) => {
+          if (!cb.checked) {
+            const field = cb.dataset.field;
+            const fieldMap = {
+              permissionMode: () =>
+                settingsViewerBody.querySelector("#sv-perm-mode").value || null,
+              worktree: () =>
+                settingsViewerBody.querySelector("#sv-worktree").checked,
+              worktreeName: () =>
+                settingsViewerBody
+                  .querySelector("#sv-worktree-name")
+                  .value.trim(),
+              chrome: () =>
+                settingsViewerBody.querySelector("#sv-chrome").checked,
+              preLaunchCmd: () =>
+                settingsViewerBody.querySelector("#sv-pre-launch").value.trim(),
+              addDirs: () =>
+                settingsViewerBody.querySelector("#sv-add-dirs").value.trim(),
+              visibleSessionCount: () =>
+                parseInt(
+                  settingsViewerBody.querySelector("#sv-visible-count").value,
+                ) || 10,
+            };
+            if (fieldMap[field]) settings[field] = fieldMap[field]();
+          }
+        });
+      } else {
+        settings.permissionMode =
+          settingsViewerBody.querySelector("#sv-perm-mode").value || null;
+        settings.worktree =
+          settingsViewerBody.querySelector("#sv-worktree").checked;
+        settings.worktreeName = settingsViewerBody
+          .querySelector("#sv-worktree-name")
+          .value.trim();
+        settings.chrome =
+          settingsViewerBody.querySelector("#sv-chrome").checked;
+        settings.preLaunchCmd = settingsViewerBody
+          .querySelector("#sv-pre-launch")
+          .value.trim();
+        settings.addDirs = settingsViewerBody
+          .querySelector("#sv-add-dirs")
+          .value.trim();
+        settings.visibleSessionCount =
+          parseInt(
+            settingsViewerBody.querySelector("#sv-visible-count").value,
+          ) || 10;
+        settings.sessionMaxAgeDays =
+          parseInt(settingsViewerBody.querySelector("#sv-max-age").value) || 3;
+        settings.terminalTheme =
+          settingsViewerBody.querySelector("#sv-terminal-theme").value ||
+          "switchboard";
       }
-      renderProjects(showArchived ? cachedAllProjects : cachedProjects);
-    }
 
-    // Flash save confirmation
-    const btn = settingsViewerBody.querySelector('#sv-save-btn');
-    btn.classList.add('saved');
-    btn.textContent = 'Saved!';
-    setTimeout(() => { btn.classList.remove('saved'); btn.textContent = 'Save Settings'; }, 1500);
-  });
+      // Preserve windowBounds and sidebarWidth if they exist
+      if (!isProject) {
+        const existing = (await window.api.getSetting("global")) || {};
+        if (existing.windowBounds)
+          settings.windowBounds = existing.windowBounds;
+        if (existing.sidebarWidth)
+          settings.sidebarWidth = existing.sidebarWidth;
+      }
+
+      await window.api.setSetting(settingsKey, settings);
+
+      // Update visibleSessionCount, sessionMaxAgeDays, and theme
+      if (!isProject) {
+        if (settings.visibleSessionCount)
+          visibleSessionCount = settings.visibleSessionCount;
+        if (settings.sessionMaxAgeDays)
+          sessionMaxAgeDays = settings.sessionMaxAgeDays;
+        if (settings.terminalTheme) {
+          currentThemeName = settings.terminalTheme;
+          TERMINAL_THEME = getTerminalTheme();
+          // Apply to all open terminals
+          for (const [, entry] of openSessions) {
+            entry.terminal.options.theme = TERMINAL_THEME;
+          }
+        }
+        renderProjects(showArchived ? cachedAllProjects : cachedProjects);
+      }
+
+      // Flash save confirmation
+      const btn = settingsViewerBody.querySelector("#sv-save-btn");
+      btn.classList.add("saved");
+      btn.textContent = "Saved!";
+      setTimeout(() => {
+        btn.classList.remove("saved");
+        btn.textContent = "Save Settings";
+      }, 1500);
+    });
 
   // Remove project button
-  const removeBtn = settingsViewerBody.querySelector('#sv-remove-btn');
+  const removeBtn = settingsViewerBody.querySelector("#sv-remove-btn");
   if (removeBtn) {
-    removeBtn.addEventListener('click', async () => {
-      if (!confirm(`Remove project "${shortName}" from Switchboard?\n\nThis hides the project from the sidebar. Your session files are not deleted.`)) return;
+    removeBtn.addEventListener("click", async () => {
+      if (
+        !confirm(
+          `Remove project "${shortName}" from Switchboard?\n\nThis hides the project from the sidebar. Your session files are not deleted.`,
+        )
+      )
+        return;
       await window.api.removeProject(projectPath);
-      settingsViewer.style.display = 'none';
-      placeholder.style.display = 'flex';
+      settingsViewer.style.display = "none";
+      placeholder.style.display = "flex";
       loadProjects();
     });
   }
 }
 
 // Global settings gear button
-globalSettingsBtn.addEventListener('click', () => {
-  openSettingsViewer('global');
+globalSettingsBtn.addEventListener("click", () => {
+  openSettingsViewer("global");
 });
 
 // Add project button
-addProjectBtn.addEventListener('click', () => {
+addProjectBtn.addEventListener("click", () => {
   showAddProjectDialog();
 });
 
 function showAddProjectDialog() {
-  const overlay = document.createElement('div');
-  overlay.className = 'add-project-overlay';
+  const overlay = document.createElement("div");
+  overlay.className = "add-project-overlay";
 
-  const dialog = document.createElement('div');
-  dialog.className = 'add-project-dialog';
+  const dialog = document.createElement("div");
+  dialog.className = "add-project-dialog";
 
   dialog.innerHTML = `
     <h3>Add Project</h3>
@@ -2931,27 +3477,27 @@ function showAddProjectDialog() {
   overlay.appendChild(dialog);
   document.body.appendChild(overlay);
 
-  const pathInput = dialog.querySelector('#add-project-path');
-  const errorEl = dialog.querySelector('#add-project-error');
+  const pathInput = dialog.querySelector("#add-project-path");
+  const errorEl = dialog.querySelector("#add-project-error");
   pathInput.focus();
 
   function close() {
     overlay.remove();
-    document.removeEventListener('keydown', onKey);
+    document.removeEventListener("keydown", onKey);
   }
 
   async function addProject() {
     const projectPath = pathInput.value.trim();
     if (!projectPath) {
-      errorEl.textContent = 'Please enter a folder path.';
-      errorEl.style.display = 'block';
+      errorEl.textContent = "Please enter a folder path.";
+      errorEl.style.display = "block";
       return;
     }
-    errorEl.style.display = 'none';
+    errorEl.style.display = "none";
     const result = await window.api.addProject(projectPath);
     if (result.error) {
       errorEl.textContent = result.error;
-      errorEl.style.display = 'block';
+      errorEl.style.display = "block";
       return;
     }
     close();
@@ -2961,62 +3507,66 @@ function showAddProjectDialog() {
     await loadProjects();
   }
 
-  dialog.querySelector('.add-project-browse-btn').onclick = async () => {
+  dialog.querySelector(".add-project-browse-btn").onclick = async () => {
     const folder = await window.api.browseFolder();
     if (folder) pathInput.value = folder;
   };
 
-  dialog.querySelector('.add-project-cancel-btn').onclick = close;
-  dialog.querySelector('.add-project-add-btn').onclick = addProject;
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  dialog.querySelector(".add-project-cancel-btn").onclick = close;
+  dialog.querySelector(".add-project-add-btn").onclick = addProject;
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+  });
 
   function onKey(e) {
-    if (e.key === 'Escape') close();
-    if (e.key === 'Enter') addProject();
+    if (e.key === "Escape") close();
+    if (e.key === "Enter") addProject();
   }
-  document.addEventListener('keydown', onKey);
+  document.addEventListener("keydown", onKey);
 }
 
 // --- Sidebar resize ---
 {
-  const sidebar = document.getElementById('sidebar');
-  const handle = document.getElementById('sidebar-resize-handle');
+  const sidebar = document.getElementById("sidebar");
+  const handle = document.getElementById("sidebar-resize-handle");
   let dragging = false;
 
-  handle.addEventListener('mousedown', (e) => {
+  handle.addEventListener("mousedown", (e) => {
     e.preventDefault();
     dragging = true;
-    handle.classList.add('dragging');
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+    handle.classList.add("dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   });
 
-  window.addEventListener('mousemove', (e) => {
+  window.addEventListener("mousemove", (e) => {
     if (!dragging) return;
     const width = Math.min(600, Math.max(200, e.clientX));
-    sidebar.style.width = width + 'px';
+    sidebar.style.width = width + "px";
   });
 
-  window.addEventListener('mouseup', () => {
+  window.addEventListener("mouseup", () => {
     if (!dragging) return;
     dragging = false;
-    handle.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
+    handle.classList.remove("dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
     // Refit active terminal
     if (activeSessionId && openSessions.has(activeSessionId)) {
       const entry = openSessions.get(activeSessionId);
       entry.fitAddon.fit();
       clearTimeout(resizeScrollActive);
-      resizeScrollActive = setTimeout(() => { resizeScrollActive = null; }, 1000);
+      resizeScrollActive = setTimeout(() => {
+        resizeScrollActive = null;
+      }, 1000);
     }
     // Save sidebar width to settings
     const width = parseInt(sidebar.style.width);
     if (width) {
-      window.api.getSetting('global').then(g => {
+      window.api.getSetting("global").then((g) => {
         const global = g || {};
         global.sidebarWidth = width;
-        window.api.setSetting('global', global);
+        window.api.setSetting("global", global);
       });
     }
   });
@@ -3024,14 +3574,15 @@ function showAddProjectDialog() {
 
 // Warm up xterm.js renderer so first terminal open is fast
 setTimeout(() => {
-  const warmEl = document.createElement('div');
-  warmEl.style.cssText = 'position:absolute;left:-9999px;width:400px;height:200px;';
+  const warmEl = document.createElement("div");
+  warmEl.style.cssText =
+    "position:absolute;left:-9999px;width:400px;height:200px;";
   document.body.appendChild(warmEl);
   const warmTerm = new Terminal({ cols: 80, rows: 10 });
   const warmFit = new FitAddon();
   warmTerm.loadAddon(warmFit);
   warmTerm.open(warmEl);
-  warmTerm.write(' ');
+  warmTerm.write(" ");
   requestAnimationFrame(() => {
     warmTerm.dispose();
     warmEl.remove();
@@ -3044,24 +3595,27 @@ window.api.onTerminalPassthrough((data) => {
 });
 
 // --- Global keyboard shortcuts ---
-document.addEventListener('keydown', (e) => {
+document.addEventListener("keydown", (e) => {
   // Cmd+T: open new terminal in same project
-  if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+  if ((e.metaKey || e.ctrlKey) && e.key === "t") {
     e.preventDefault();
     const entry = activeSessionId && openSessions.get(activeSessionId);
     const projectPath = entry?.session?.projectPath;
     if (!projectPath) return;
-    const project = cachedAllProjects.find(p => p.projectPath === projectPath);
+    const project = cachedAllProjects.find(
+      (p) => p.projectPath === projectPath,
+    );
     if (project) launchTerminalSession(project);
   }
 });
 
 // --- Init: restore settings ---
 (async () => {
-  const global = await window.api.getSetting('global');
+  const global = await window.api.getSetting("global");
   if (global) {
     if (global.sidebarWidth) {
-      document.getElementById('sidebar').style.width = global.sidebarWidth + 'px';
+      document.getElementById("sidebar").style.width =
+        global.sidebarWidth + "px";
     }
     if (global.visibleSessionCount) {
       visibleSessionCount = global.visibleSessionCount;
@@ -3090,7 +3644,7 @@ let projectsChangedWhileAway = false;
 window.api.onProjectsChanged(() => {
   // Debounce to avoid rapid re-renders during bulk changes
   if (projectsChangedTimer) clearTimeout(projectsChangedTimer);
-  if (activeTab !== 'sessions') {
+  if (activeTab !== "sessions") {
     projectsChangedWhileAway = true;
     return;
   }
@@ -3104,69 +3658,78 @@ window.api.onProjectsChanged(() => {
 let activityTimer = null;
 
 function renderDefaultStatus() {
-  const totalSessions = cachedAllProjects.reduce((n, p) => n + p.sessions.length, 0);
+  const totalSessions = cachedAllProjects.reduce(
+    (n, p) => n + p.sessions.length,
+    0,
+  );
   const totalProjects = cachedAllProjects.length;
   const running = activePtyIds.size;
   const parts = [];
   if (running > 0) parts.push(`${running} running`);
   parts.push(`${totalSessions} sessions`);
   parts.push(`${totalProjects} projects`);
-  statusBarInfo.textContent = parts.join(' \u00b7 ');
+  statusBarInfo.textContent = parts.join(" \u00b7 ");
 }
 
 window.api.onStatusUpdate((text, type) => {
   if (activityTimer) clearTimeout(activityTimer);
   statusBarActivity.textContent = text;
-  statusBarActivity.className = type === 'done' ? 'status-done' : '';
-  if (!text || type === 'done') {
-    activityTimer = setTimeout(() => {
-      statusBarActivity.textContent = '';
-      statusBarActivity.className = '';
-    }, type === 'done' ? 3000 : 0);
+  statusBarActivity.className = type === "done" ? "status-done" : "";
+  if (!text || type === "done") {
+    activityTimer = setTimeout(
+      () => {
+        statusBarActivity.textContent = "";
+        statusBarActivity.className = "";
+      },
+      type === "done" ? 3000 : 0,
+    );
   }
 });
 
 // --- Auto-update status + toast ---
-const statusBarUpdater = document.getElementById('status-bar-updater');
+const statusBarUpdater = document.getElementById("status-bar-updater");
 let updaterStatusTimer = null;
 function setUpdaterStatus(text, duration) {
   if (updaterStatusTimer) clearTimeout(updaterStatusTimer);
   statusBarUpdater.textContent = text;
   if (duration) {
-    updaterStatusTimer = setTimeout(() => { statusBarUpdater.textContent = ''; }, duration);
+    updaterStatusTimer = setTimeout(() => {
+      statusBarUpdater.textContent = "";
+    }, duration);
   }
 }
 const updaterHandler = (type, data) => {
   switch (type) {
-    case 'checking':
-      setUpdaterStatus('Checking for updates…');
+    case "checking":
+      setUpdaterStatus("Checking for updates…");
       break;
-    case 'update-available':
+    case "update-available":
       setUpdaterStatus(`Downloading v${data.version}…`);
       break;
-    case 'update-not-available':
-      setUpdaterStatus('Up to date', 3000);
+    case "update-not-available":
+      setUpdaterStatus("Up to date", 3000);
       break;
-    case 'download-progress':
+    case "download-progress":
       setUpdaterStatus(`Updating… ${Math.round(data.percent)}%`);
       break;
-    case 'update-downloaded': {
+    case "update-downloaded": {
       setUpdaterStatus(`v${data.version} ready — restart to update`);
-      const dismissed = localStorage.getItem('update-dismissed');
+      const dismissed = localStorage.getItem("update-dismissed");
       if (dismissed === data.version) return;
-      const toast = document.getElementById('update-toast');
-      const msg = document.getElementById('update-toast-msg');
+      const toast = document.getElementById("update-toast");
+      const msg = document.getElementById("update-toast-msg");
       msg.innerHTML = `New Version Ready<br><span class="update-version">v${data.version}</span>`;
-      toast.classList.remove('hidden');
-      document.getElementById('update-restart-btn').onclick = () => window.api.updaterInstall();
-      document.getElementById('update-dismiss-btn').onclick = () => {
-        toast.classList.add('hidden');
-        localStorage.setItem('update-dismissed', data.version);
+      toast.classList.remove("hidden");
+      document.getElementById("update-restart-btn").onclick = () =>
+        window.api.updaterInstall();
+      document.getElementById("update-dismiss-btn").onclick = () => {
+        toast.classList.add("hidden");
+        localStorage.setItem("update-dismissed", data.version);
       };
       break;
     }
-    case 'error':
-      setUpdaterStatus('Update check failed', 5000);
+    case "error":
+      setUpdaterStatus("Update check failed", 5000);
       break;
   }
 };

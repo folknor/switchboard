@@ -4,7 +4,10 @@ interface Window {
   api: {
     getPlans(): Promise<any[]>;
     readPlan(filename: string): Promise<{ content: string; filePath: string }>;
-    savePlan(filePath: string, content: string): Promise<{ ok: boolean; error?: string }>;
+    savePlan(
+      filePath: string,
+      content: string,
+    ): Promise<{ ok: boolean; error?: string }>;
     getStats(): Promise<any>;
     getMemories(): Promise<any[]>;
     readMemory(filePath: string): Promise<string>;
@@ -15,7 +18,12 @@ interface Window {
     toggleStar(id: string): Promise<{ starred: number }>;
     renameSession(id: string, name: string): Promise<any>;
     archiveSession(id: string, archived: boolean): Promise<any>;
-    openTerminal(id: string, projectPath: string, isNew: boolean, sessionOptions?: any): Promise<any>;
+    openTerminal(
+      id: string,
+      projectPath: string,
+      isNew: boolean,
+      sessionOptions?: any,
+    ): Promise<any>;
     search(type: string, query: string): Promise<any[]>;
     readSessionJsonl(sessionId: string): Promise<any>;
 
@@ -35,9 +43,15 @@ interface Window {
 
     onTerminalData(callback: (sessionId: string, data: string) => void): void;
     onSessionDetected(callback: (tempId: string, realId: string) => void): void;
-    onProcessExited(callback: (sessionId: string, exitCode: number) => void): void;
-    onProgressState(callback: (sessionId: string, state: number, percent: number) => void): void;
-    onTerminalNotification(callback: (sessionId: string, message: string) => void): void;
+    onProcessExited(
+      callback: (sessionId: string, exitCode: number) => void,
+    ): void;
+    onProgressState(
+      callback: (sessionId: string, state: number, percent: number) => void,
+    ): void;
+    onTerminalNotification(
+      callback: (sessionId: string, message: string) => void,
+    ): void;
     onSessionForked(callback: (oldId: string, newId: string) => void): void;
     onProjectsChanged(callback: () => void): void;
     onStatusUpdate(callback: (text: string, type: string) => void): void;

@@ -1,34 +1,38 @@
 #!/usr/bin/env node
-const { execSync } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+const { execSync } = require("child_process");
+const path = require("path");
+const fs = require("fs");
 
 // Install native dependencies for Electron
 try {
-  execSync('npx electron-builder install-app-deps', { stdio: 'inherit' });
+  execSync("npx electron-builder install-app-deps", { stdio: "inherit" });
 } catch (err) {
-  console.error('electron-builder install-app-deps failed:', err.message);
+  console.error("electron-builder install-app-deps failed:", err.message);
 }
 
 // macOS/Linux: ad-hoc codesign native modules & fix node-pty permissions
-if (process.platform !== 'win32') {
+if (process.platform !== "win32") {
   // Ad-hoc codesign all .node files so macOS doesn't block them
   try {
-    const nodeModules = path.join(__dirname, '..', 'node_modules');
-    findFiles(nodeModules, '.node').forEach(file => {
+    const nodeModules = path.join(__dirname, "..", "node_modules");
+    findFiles(nodeModules, ".node").forEach((file) => {
       try {
-        execSync(`codesign --sign - --force "${file}"`, { stdio: 'ignore' });
+        execSync(`codesign --sign - --force "${file}"`, { stdio: "ignore" });
       } catch {}
     });
   } catch {}
 
   // Ensure node-pty spawn-helper is executable
   const spawnHelperGlob = path.join(
-    __dirname, '..', 'node_modules', 'node-pty', 'prebuilds'
+    __dirname,
+    "..",
+    "node_modules",
+    "node-pty",
+    "prebuilds",
   );
   if (fs.existsSync(spawnHelperGlob)) {
     try {
-      findFiles(spawnHelperGlob, 'spawn-helper').forEach(file => {
+      findFiles(spawnHelperGlob, "spawn-helper").forEach((file) => {
         fs.chmodSync(file, 0o755);
       });
     } catch {}

@@ -1,32 +1,36 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import os from 'os';
-import fs from 'fs';
+import Database from "better-sqlite3";
+import path from "path";
+import os from "os";
+import fs from "fs";
 
-const DATA_DIR = path.join(os.homedir(), '.switchboard');
+const DATA_DIR = path.join(os.homedir(), ".switchboard");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const DB_PATH = path.join(DATA_DIR, 'switchboard.db');
+const DB_PATH = path.join(DATA_DIR, "switchboard.db");
 
 // Migrate from old locations if needed
 const OLD_LOCATIONS = [
-  path.join(os.homedir(), '.claude', 'browser', 'switchboard.db'),
-  path.join(os.homedir(), '.claude', 'browser', 'session-browser.db'),
-  path.join(os.homedir(), '.claude', 'session-browser.db'),
+  path.join(os.homedir(), ".claude", "browser", "switchboard.db"),
+  path.join(os.homedir(), ".claude", "browser", "session-browser.db"),
+  path.join(os.homedir(), ".claude", "session-browser.db"),
 ];
 if (!fs.existsSync(DB_PATH)) {
   for (const oldPath of OLD_LOCATIONS) {
     if (fs.existsSync(oldPath)) {
       fs.renameSync(oldPath, DB_PATH);
-      try { fs.renameSync(oldPath + '-wal', DB_PATH + '-wal'); } catch {}
-      try { fs.renameSync(oldPath + '-shm', DB_PATH + '-shm'); } catch {}
+      try {
+        fs.renameSync(oldPath + "-wal", DB_PATH + "-wal");
+      } catch {}
+      try {
+        fs.renameSync(oldPath + "-shm", DB_PATH + "-shm");
+      } catch {}
       break;
     }
   }
 }
 const db = new Database(DB_PATH);
 
-db.pragma('journal_mode = WAL');
+db.pragma("journal_mode = WAL");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS session_meta (
@@ -67,8 +71,12 @@ db.exec(`
 `);
 
 // Index for fast folder lookups
-db.exec('CREATE INDEX IF NOT EXISTS idx_session_cache_folder ON session_cache(folder)');
-db.exec('CREATE INDEX IF NOT EXISTS idx_session_cache_slug ON session_cache(slug)');
+db.exec(
+  "CREATE INDEX IF NOT EXISTS idx_session_cache_folder ON session_cache(folder)",
+);
+db.exec(
+  "CREATE INDEX IF NOT EXISTS idx_session_cache_slug ON session_cache(slug)",
+);
 
 // --- FTS5 full-text search ---
 db.exec(`
@@ -86,11 +94,13 @@ db.exec(`
   )
 `);
 
-db.exec('CREATE INDEX IF NOT EXISTS idx_search_map_type_id ON search_map(type, id)');
+db.exec(
+  "CREATE INDEX IF NOT EXISTS idx_search_map_type_id ON search_map(type, id)",
+);
 
 const stmts = {
-  get: db.prepare('SELECT * FROM session_meta WHERE sessionId = ?'),
-  getAll: db.prepare('SELECT * FROM session_meta'),
+  get: db.prepare("SELECT * FROM session_meta WHERE sessionId = ?"),
+  getAll: db.prepare("SELECT * FROM session_meta"),
   upsertName: db.prepare(`
     INSERT INTO session_meta (sessionId, name) VALUES (?, ?)
     ON CONFLICT(sessionId) DO UPDATE SET name = excluded.name
@@ -104,8 +114,8 @@ const stmts = {
     ON CONFLICT(sessionId) DO UPDATE SET archived = excluded.archived
   `),
   // Session cache statements
-  cacheCount: db.prepare('SELECT COUNT(*) as cnt FROM session_cache'),
-  cacheGetAll: db.prepare('SELECT * FROM session_cache'),
+  cacheCount: db.prepare("SELECT COUNT(*) as cnt FROM session_cache"),
+  cacheGetAll: db.prepare("SELECT * FROM session_cache"),
   cacheUpsert: db.prepare(`
     INSERT INTO session_cache (sessionId, folder, projectPath, summary, firstPrompt, created, modified, messageCount, slug)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -115,36 +125,56 @@ const stmts = {
       created = excluded.created, modified = excluded.modified,
       messageCount = excluded.messageCount, slug = excluded.slug
   `),
-  cacheGetByFolder: db.prepare('SELECT sessionId, modified FROM session_cache WHERE folder = ?'),
-  cacheGetFolder: db.prepare('SELECT folder FROM session_cache WHERE sessionId = ?'),
-  cacheDeleteSession: db.prepare('DELETE FROM session_cache WHERE sessionId = ?'),
-  cacheDeleteFolder: db.prepare('DELETE FROM session_cache WHERE folder = ?'),
+  cacheGetByFolder: db.prepare(
+    "SELECT sessionId, modified FROM session_cache WHERE folder = ?",
+  ),
+  cacheGetFolder: db.prepare(
+    "SELECT folder FROM session_cache WHERE sessionId = ?",
+  ),
+  cacheDeleteSession: db.prepare(
+    "DELETE FROM session_cache WHERE sessionId = ?",
+  ),
+  cacheDeleteFolder: db.prepare("DELETE FROM session_cache WHERE folder = ?"),
   // Cache meta statements
-  metaGet: db.prepare('SELECT * FROM cache_meta WHERE folder = ?'),
-  metaGetAll: db.prepare('SELECT * FROM cache_meta'),
+  metaGet: db.prepare("SELECT * FROM cache_meta WHERE folder = ?"),
+  metaGetAll: db.prepare("SELECT * FROM cache_meta"),
   metaUpsert: db.prepare(`
     INSERT INTO cache_meta (folder, projectPath, indexMtimeMs)
     VALUES (?, ?, ?)
     ON CONFLICT(folder) DO UPDATE SET
       projectPath = excluded.projectPath, indexMtimeMs = excluded.indexMtimeMs
   `),
-  metaDelete: db.prepare('DELETE FROM cache_meta WHERE folder = ?'),
+  metaDelete: db.prepare("DELETE FROM cache_meta WHERE folder = ?"),
   // FTS search statements
-  searchDeleteBySession: db.prepare('DELETE FROM search_fts WHERE rowid IN (SELECT rowid FROM search_map WHERE type = \'session\' AND id = ?)'),
-  searchMapDeleteBySession: db.prepare('DELETE FROM search_map WHERE type = \'session\' AND id = ?'),
-  searchDeleteByFolder: db.prepare('DELETE FROM search_fts WHERE rowid IN (SELECT rowid FROM search_map WHERE type = \'session\' AND folder = ?)'),
-  searchMapDeleteByFolder: db.prepare('DELETE FROM search_map WHERE type = \'session\' AND folder = ?'),
-  searchDeleteByType: db.prepare('DELETE FROM search_fts WHERE rowid IN (SELECT rowid FROM search_map WHERE type = ?)'),
-  searchMapDeleteByType: db.prepare('DELETE FROM search_map WHERE type = ?'),
-  searchInsertFts: db.prepare('INSERT OR REPLACE INTO search_fts(rowid, title, body) VALUES (?, ?, ?)'),
-  searchInsertMap: db.prepare('INSERT OR REPLACE INTO search_map(id, type, folder) VALUES (?, ?, ?)'),
+  searchDeleteBySession: db.prepare(
+    "DELETE FROM search_fts WHERE rowid IN (SELECT rowid FROM search_map WHERE type = 'session' AND id = ?)",
+  ),
+  searchMapDeleteBySession: db.prepare(
+    "DELETE FROM search_map WHERE type = 'session' AND id = ?",
+  ),
+  searchDeleteByFolder: db.prepare(
+    "DELETE FROM search_fts WHERE rowid IN (SELECT rowid FROM search_map WHERE type = 'session' AND folder = ?)",
+  ),
+  searchMapDeleteByFolder: db.prepare(
+    "DELETE FROM search_map WHERE type = 'session' AND folder = ?",
+  ),
+  searchDeleteByType: db.prepare(
+    "DELETE FROM search_fts WHERE rowid IN (SELECT rowid FROM search_map WHERE type = ?)",
+  ),
+  searchMapDeleteByType: db.prepare("DELETE FROM search_map WHERE type = ?"),
+  searchInsertFts: db.prepare(
+    "INSERT OR REPLACE INTO search_fts(rowid, title, body) VALUES (?, ?, ?)",
+  ),
+  searchInsertMap: db.prepare(
+    "INSERT OR REPLACE INTO search_map(id, type, folder) VALUES (?, ?, ?)",
+  ),
   // Settings statements
-  settingsGet: db.prepare('SELECT value FROM settings WHERE key = ?'),
+  settingsGet: db.prepare("SELECT value FROM settings WHERE key = ?"),
   settingsUpsert: db.prepare(`
     INSERT INTO settings (key, value) VALUES (?, ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value
   `),
-  settingsDelete: db.prepare('DELETE FROM settings WHERE key = ?'),
+  settingsDelete: db.prepare("DELETE FROM settings WHERE key = ?"),
   searchQuery: db.prepare(`
     SELECT search_map.id, snippet(search_fts, 1, '<mark>', '</mark>', '...', 40) as snippet
     FROM search_fts
@@ -193,9 +223,15 @@ function getAllCached() {
 const upsertCachedSessionsBatch = db.transaction((sessions) => {
   for (const s of sessions) {
     stmts.cacheUpsert.run(
-      s.sessionId, s.folder, s.projectPath, s.summary,
-      s.firstPrompt, s.created, s.modified, s.messageCount || 0,
-      s.slug || null
+      s.sessionId,
+      s.folder,
+      s.projectPath,
+      s.summary,
+      s.firstPrompt,
+      s.created,
+      s.modified,
+      s.messageCount || 0,
+      s.slug || null,
     );
   }
 });
@@ -242,7 +278,11 @@ function setFolderMeta(folder, projectPath, indexMtimeMs) {
 const upsertSearchEntriesBatch = db.transaction((entries) => {
   for (const e of entries) {
     const result = stmts.searchInsertMap.run(e.id, e.type, e.folder || null);
-    stmts.searchInsertFts.run(result.lastInsertRowid, e.title || '', e.body || '');
+    stmts.searchInsertFts.run(
+      result.lastInsertRowid,
+      e.title || "",
+      e.body || "",
+    );
   }
 });
 
@@ -277,7 +317,9 @@ function searchByType(type, query, limit = 50) {
 }
 
 function isSearchIndexPopulated() {
-  const row = db.prepare('SELECT COUNT(*) as cnt FROM search_map WHERE type = ?').get('session');
+  const row = db
+    .prepare("SELECT COUNT(*) as cnt FROM search_map WHERE type = ?")
+    .get("session");
   return row.cnt > 0;
 }
 
@@ -286,7 +328,11 @@ function isSearchIndexPopulated() {
 function getSetting(key) {
   const row = stmts.settingsGet.get(key);
   if (!row) return null;
-  try { return JSON.parse(row.value); } catch { return row.value; }
+  try {
+    return JSON.parse(row.value);
+  } catch {
+    return row.value;
+  }
 }
 
 function setSetting(key, value) {
@@ -298,11 +344,28 @@ function deleteSetting(key) {
 }
 
 export {
-  getMeta, getAllMeta, setName, toggleStar, setArchived,
-  isCachePopulated, getAllCached, getCachedByFolder, getCachedFolder, upsertCachedSessions,
-  deleteCachedSession, deleteCachedFolder,
-  getFolderMeta, getAllFolderMeta, setFolderMeta,
-  upsertSearchEntries, deleteSearchSession, deleteSearchFolder, deleteSearchType,
-  searchByType, isSearchIndexPopulated,
-  getSetting, setSetting, deleteSetting,
+  getMeta,
+  getAllMeta,
+  setName,
+  toggleStar,
+  setArchived,
+  isCachePopulated,
+  getAllCached,
+  getCachedByFolder,
+  getCachedFolder,
+  upsertCachedSessions,
+  deleteCachedSession,
+  deleteCachedFolder,
+  getFolderMeta,
+  getAllFolderMeta,
+  setFolderMeta,
+  upsertSearchEntries,
+  deleteSearchSession,
+  deleteSearchFolder,
+  deleteSearchType,
+  searchByType,
+  isSearchIndexPopulated,
+  getSetting,
+  setSetting,
+  deleteSetting,
 };
