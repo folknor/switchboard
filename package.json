@@ -15,7 +15,9 @@
     "package:win": "electron-vite build && electron-builder --win --config",
     "package:linux": "electron-vite build && electron-builder --linux --config",
     "release": "electron-vite build && electron-builder --publish always --config",
-    "generate-icons": "node scripts/generate-icons.js && node scripts/generate-dmg-background.js"
+    "generate-icons": "node scripts/generate-icons.js && node scripts/generate-dmg-background.js",
+    "lint": "pnpm exec biome check --max-diagnostics=none --reporter=github --formatter-enabled=true --linter-enabled=true --assist-enabled=true",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -40,6 +42,7 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.6",
     "@napi-rs/canvas": "^0.1.96",
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
