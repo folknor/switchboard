@@ -4,11 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 import morphdom from "morphdom";
-import {
-  CMEditorState,
-  CMEditorView,
-  createPlanEditor,
-} from "./codemirror-setup";
+import { createPlanEditor } from "./codemirror-setup";
 
 const statusBarInfo = document.getElementById("status-bar-info");
 const statusBarActivity = document.getElementById("status-bar-activity");
@@ -37,7 +33,7 @@ const planSaveBtn = document.getElementById("plan-save-btn");
 
 let currentPlanContent = "";
 let currentPlanFilePath = "";
-let currentPlanFilename = "";
+let _currentPlanFilename = "";
 let planEditorView = null;
 const loadingStatus = document.getElementById("loading-status");
 const sessionFilters = document.getElementById("session-filters");
@@ -438,7 +434,7 @@ window.api.onSessionForked((oldId, newId) => {
   pollActiveSessions();
 });
 
-window.api.onProcessExited((sessionId, exitCode) => {
+window.api.onProcessExited((sessionId, _exitCode) => {
   const entry = openSessions.get(sessionId);
   const session = sessionMap.get(sessionId);
   if (entry) {
@@ -536,9 +532,9 @@ function updateProgressIndicators(sessionId) {
   if (sessionId === activeSessionId) {
     const bar = document.getElementById("terminal-progress-bar");
     if (!bar) return;
-    bar.className = "progress-state-" + state;
+    bar.className = `progress-state-${state}`;
     if (state === 1) {
-      bar.style.setProperty("--progress", (percent || 0) + "%");
+      bar.style.setProperty("--progress", `${percent || 0}%`);
     }
   }
 }
@@ -746,13 +742,13 @@ setInterval(pollActiveSessions, 3000);
 // Refresh sidebar timeago labels every 30s so "just now" ticks forward
 setInterval(() => {
   for (const [sessionId, time] of lastActivityTime) {
-    const item = document.getElementById("si-" + sessionId);
+    const item = document.getElementById(`si-${sessionId}`);
     if (!item) continue;
     const meta = item.querySelector(".session-meta");
     if (!meta) continue;
     const session = sessionMap.get(sessionId);
     const msgSuffix = session?.messageCount
-      ? " \u00b7 " + session.messageCount + " msgs"
+      ? ` \u00b7 ${session.messageCount} msgs`
       : "";
     meta.textContent = formatDate(time) + msgSuffix;
   }
@@ -794,7 +790,7 @@ async function loadProjects() {
   dedup(cachedAllProjects);
 
   // Reconcile pending sessions: remove ones that now have real data
-  let hasReinjected = false;
+  let _hasReinjected = false;
   for (const [sid, pending] of [...pendingSessions]) {
     const realExists = allProjects.some((p) =>
       p.sessions.some((s) => s.sessionId === sid),
@@ -802,7 +798,7 @@ async function loadProjects() {
     if (realExists) {
       pendingSessions.delete(sid);
     } else {
-      hasReinjected = true;
+      _hasReinjected = true;
       // Still pending — re-inject into cached data
       for (const projList of [cachedProjects, cachedAllProjects]) {
         let proj = projList.find((p) => p.projectPath === pending.projectPath);
@@ -862,11 +858,11 @@ async function loadProjects() {
 }
 
 function slugId(slug) {
-  return "slug-" + slug.replace(/[^a-zA-Z0-9_-]/g, "_");
+  return `slug-${slug.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
 function folderId(projectPath) {
-  return "project-" + projectPath.replace(/[^a-zA-Z0-9_-]/g, "_");
+  return `project-${projectPath.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
 function buildSlugGroup(slug, sessions) {
@@ -945,12 +941,12 @@ function buildSlugGroup(slug, sessions) {
     if (rest.length > 0) {
       const moreBtn = document.createElement("div");
       moreBtn.className = "slug-group-more";
-      moreBtn.id = "sgm-" + id;
+      moreBtn.id = `sgm-${id}`;
       moreBtn.textContent = `+ ${rest.length} more`;
 
       const olderDiv = document.createElement("div");
       olderDiv.className = "slug-group-older";
-      olderDiv.id = "sgo-" + id;
+      olderDiv.id = `sgo-${id}`;
       for (const session of rest) {
         olderDiv.appendChild(buildSessionItem(session));
       }
@@ -1058,7 +1054,7 @@ function renderProjects(projects, isSearchResult) {
         pendingSessions.has(session.sessionId);
       allItems.push({
         sortTime: new Date(session.modified).getTime(),
-        pinned: !!session.starred,
+        pinned: Boolean(session.starred),
         running: isRunning,
         element: buildSessionItem(session),
       });
@@ -1149,7 +1145,7 @@ function renderProjects(projects, isSearchResult) {
 
     const header = document.createElement("div");
     header.className = "project-header";
-    header.id = "ph-" + fId;
+    header.id = `ph-${fId}`;
     const shortName = project.projectPath
       .split("/")
       .filter(Boolean)
@@ -1180,7 +1176,7 @@ function renderProjects(projects, isSearchResult) {
 
     const sessionsList = document.createElement("div");
     sessionsList.className = "project-sessions";
-    sessionsList.id = "sessions-" + fId;
+    sessionsList.id = `sessions-${fId}`;
 
     for (const item of visible) {
       sessionsList.appendChild(item.element);
@@ -1189,11 +1185,11 @@ function renderProjects(projects, isSearchResult) {
     if (older.length > 0) {
       const moreBtn = document.createElement("div");
       moreBtn.className = "sessions-more-toggle";
-      moreBtn.id = "older-" + fId;
+      moreBtn.id = `older-${fId}`;
       moreBtn.textContent = `+ ${older.length} older`;
       const olderList = document.createElement("div");
       olderList.className = "sessions-older";
-      olderList.id = "older-list-" + fId;
+      olderList.id = `older-list-${fId}`;
       olderList.style.display = "none";
       for (const item of older) {
         olderList.appendChild(item.element);
@@ -1276,7 +1272,7 @@ function renderProjects(projects, isSearchResult) {
   });
 
   rebindSidebarEvents(projects);
-  lastRenderWasSearch = !!isSearchResult;
+  lastRenderWasSearch = Boolean(isSearchResult);
 
   // Restore terminal focus after morphdom DOM updates, but not if the user is typing in the search box
   if (
@@ -1291,7 +1287,7 @@ function renderProjects(projects, isSearchResult) {
 function rebindSidebarEvents(projects) {
   for (const project of projects) {
     const fId = folderId(project.projectPath);
-    const header = document.getElementById("ph-" + fId);
+    const header = document.getElementById(`ph-${fId}`);
     if (!header) continue;
     const newBtn = header.querySelector(".project-new-btn");
     if (newBtn) {
@@ -1386,8 +1382,7 @@ function rebindSidebarEvents(projects) {
     .querySelectorAll(".sessions-more-toggle")
     .forEach((moreBtn) => {
       const olderList = moreBtn.nextElementSibling;
-      if (!(olderList && olderList.classList.contains("sessions-older")))
-        return;
+      if (!olderList?.classList.contains("sessions-older")) return;
       const count = olderList.children.length;
       moreBtn.onclick = () => {
         const showing = olderList.style.display !== "none";
@@ -1479,7 +1474,7 @@ function rebindSidebarEvents(projects) {
 function buildSessionItem(session) {
   const item = document.createElement("div");
   item.className = "session-item";
-  item.id = "si-" + session.sessionId;
+  item.id = `si-${session.sessionId}`;
   if (session.type === "terminal") item.classList.add("is-terminal");
   if (session.archived) item.classList.add("archived-item");
   if (activePtyIds.has(session.sessionId))
@@ -1499,7 +1494,7 @@ function buildSessionItem(session) {
 
   // Pin
   const pin = document.createElement("span");
-  pin.className = "session-pin" + (session.starred ? " pinned" : "");
+  pin.className = `session-pin${session.starred ? " pinned" : ""}`;
   pin.innerHTML = session.starred
     ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1-.707.707c-.28-.28-.576-.49-.888-.656L10.073 9.333l-.07 3.181a.5.5 0 0 1-.853.354l-3.535-3.536-4.243 4.243a.5.5 0 1 1-.707-.707l4.243-4.243L1.372 5.11a.5.5 0 0 1 .354-.854l3.18-.07L8.37 .722A3.37 3.37 0 0 1 9.12.074a.5.5 0 0 1 .708.002l-.707.707z"/></svg>'
     : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1-.707.707c-.28-.28-.576-.49-.888-.656L10.073 9.333l-.07 3.181a.5.5 0 0 1-.853.354l-3.535-3.536-4.243 4.243a.5.5 0 1 1-.707-.707l4.243-4.243L1.372 5.11a.5.5 0 0 1 .354-.854l3.18-.07L8.37 .722A3.37 3.37 0 0 1 9.12.074a.5.5 0 0 1 .708.002l-.707.707z"/></svg>';
@@ -1526,7 +1521,7 @@ function buildSessionItem(session) {
   metaEl.className = "session-meta";
   metaEl.textContent =
     timeStr +
-    (session.messageCount ? " \u00b7 " + session.messageCount + " msgs" : "");
+    (session.messageCount ? ` \u00b7 ${session.messageCount} msgs` : "");
 
   if (session.type === "terminal") {
     const badge = document.createElement("span");
@@ -1741,7 +1736,7 @@ async function launchNewSession(project, sessionOptions) {
 }
 
 // Legacy alias
-function openNewSession(project) {
+function _openNewSession(project) {
   return launchNewSession(project);
 }
 
@@ -2040,7 +2035,7 @@ async function openPlan(plan) {
   const result = await window.api.readPlan(plan.filename);
   currentPlanContent = result.content;
   currentPlanFilePath = result.filePath;
-  currentPlanFilename = plan.filename;
+  _currentPlanFilename = plan.filename;
 
   // Hide terminal area and placeholder, show plan viewer
   placeholder.style.display = "none";
@@ -2125,16 +2120,16 @@ function renderJsonlText(text) {
 }
 
 function formatDuration(ms) {
-  if (ms < 1000) return ms + "ms";
+  if (ms < 1000) return `${ms}ms`;
   const s = (ms / 1000).toFixed(1);
-  return s + "s";
+  return `${s}s`;
 }
 
 function makeCollapsible(className, headerText, bodyContent, startExpanded) {
   const wrapper = document.createElement("div");
   wrapper.className = className;
   const header = document.createElement("div");
-  header.className = "jsonl-toggle" + (startExpanded ? " expanded" : "");
+  header.className = `jsonl-toggle${startExpanded ? " expanded" : ""}`;
   header.textContent = headerText;
   const body = document.createElement("pre");
   body.className = "jsonl-tool-body";
@@ -2182,7 +2177,7 @@ function renderJsonlEntry(entry) {
         '<span class="jsonl-meta-icon">&#9201;</span> Turn duration: <strong>' +
         formatDuration(entry.durationMs) +
         "</strong>" +
-        (timeStr ? ' <span class="jsonl-ts">' + timeStr + "</span>" : "");
+        (timeStr ? ` <span class="jsonl-ts">${timeStr}</span>` : "");
     } else if (entry.subtype === "local_command") {
       const cmdMatch = (entry.content || "").match(
         /<command-name>(.*?)<\/command-name>/,
@@ -2192,7 +2187,7 @@ function renderJsonlEntry(entry) {
         '<span class="jsonl-meta-icon">$</span> Command: <code class="jsonl-inline-code">' +
         escapeHtml(cmd) +
         "</code>" +
-        (timeStr ? ' <span class="jsonl-ts">' + timeStr + "</span>" : "");
+        (timeStr ? ` <span class="jsonl-ts">${timeStr}</span>` : "");
     } else {
       return null;
     }
@@ -2252,8 +2247,7 @@ function renderJsonlEntry(entry) {
   if (!Array.isArray(contentBlocks)) return null;
 
   const div = document.createElement("div");
-  div.className =
-    "jsonl-entry " + (role === "user" ? "jsonl-user" : "jsonl-assistant");
+  div.className = `jsonl-entry ${role === "user" ? "jsonl-user" : "jsonl-assistant"}`;
 
   const labelRow = document.createElement("div");
   labelRow.className = "jsonl-role-label";
@@ -2280,7 +2274,7 @@ function renderJsonlEntry(entry) {
       div.appendChild(
         makeCollapsible(
           "jsonl-tool-call",
-          "Tool: " + (block.name || "unknown"),
+          `Tool: ${block.name || "unknown"}`,
           typeof block.input === "string" ? block.input : block.input,
           false,
         ),
@@ -2292,7 +2286,7 @@ function renderJsonlEntry(entry) {
           "jsonl-tool-result",
           "Tool Result" +
             (block.tool_use_id
-              ? " (" + block.tool_use_id.slice(0, 12) + "...)"
+              ? ` (${block.tool_use_id.slice(0, 12)}...)`
               : ""),
           resultContent,
           false,
@@ -2428,12 +2422,12 @@ function buildDailyBarChart(stats) {
     const bar = document.createElement("div");
     bar.className = "daily-chart-bar";
     const pct = (tokenValues[i] / maxTokens) * 100;
-    bar.style.height = Math.max(pct, tokenValues[i] > 0 ? 3 : 0) + "%";
+    bar.style.height = `${Math.max(pct, tokenValues[i] > 0 ? 3 : 0)}%`;
 
     const msgPct = (msgValues[i] / maxMsgs) * 100;
     const msgBar = document.createElement("div");
     msgBar.className = "daily-chart-bar-msgs";
-    msgBar.style.height = Math.max(msgPct, msgValues[i] > 0 ? 3 : 0) + "%";
+    msgBar.style.height = `${Math.max(msgPct, msgValues[i] > 0 ? 3 : 0)}%`;
 
     const d = new Date(days[i]);
     const dayLabel = d.toLocaleDateString("en-US", {
@@ -2441,9 +2435,9 @@ function buildDailyBarChart(stats) {
       day: "numeric",
     });
     let tokStr;
-    if (tokenValues[i] >= 1e6) tokStr = (tokenValues[i] / 1e6).toFixed(1) + "M";
+    if (tokenValues[i] >= 1e6) tokStr = `${(tokenValues[i] / 1e6).toFixed(1)}M`;
     else if (tokenValues[i] >= 1e3)
-      tokStr = (tokenValues[i] / 1e3).toFixed(1) + "K";
+      tokStr = `${(tokenValues[i] / 1e3).toFixed(1)}K`;
     else tokStr = tokenValues[i].toString();
     col.title = `${dayLabel}\n${tokStr} tokens\n${msgValues[i]} messages\n${toolValues[i]} tool calls`;
 
@@ -2517,7 +2511,7 @@ function buildHeatmap(counts) {
       label.className = "heatmap-month-label";
       label.textContent = months[m];
       label.style.position = "absolute";
-      label.style.left = w * colWidth + "px";
+      label.style.left = `${w * colWidth}px`;
       monthLabels.appendChild(label);
       lastMonth = m;
     }
@@ -2663,8 +2657,8 @@ function buildStatsSummary(stats, dailyMap) {
   const cards = [
     { value: totalSessions.toLocaleString(), label: "Total Sessions" },
     { value: totalMessages.toLocaleString(), label: "Total Messages" },
-    { value: currentStreak + "d", label: "Current Streak" },
-    { value: longestStreak + "d", label: "Longest Streak" },
+    { value: `${currentStreak}d`, label: "Current Streak" },
+    { value: `${longestStreak}d`, label: "Longest Streak" },
   ];
 
   for (const [model, usage] of Object.entries(models)) {
@@ -2673,11 +2667,11 @@ function buildStatsSummary(stats, dailyMap) {
     const label = shortName;
     // Format token count in millions/thousands
     let valueStr;
-    if (tokens >= 1e9) valueStr = (tokens / 1e9).toFixed(1) + "B";
-    else if (tokens >= 1e6) valueStr = (tokens / 1e6).toFixed(1) + "M";
-    else if (tokens >= 1e3) valueStr = (tokens / 1e3).toFixed(1) + "K";
+    if (tokens >= 1e9) valueStr = `${(tokens / 1e9).toFixed(1)}B`;
+    else if (tokens >= 1e6) valueStr = `${(tokens / 1e6).toFixed(1)}M`;
+    else if (tokens >= 1e3) valueStr = `${(tokens / 1e3).toFixed(1)}K`;
     else valueStr = tokens.toLocaleString();
-    cards.push({ value: valueStr, label: label + " tokens" });
+    cards.push({ value: valueStr, label: `${label} tokens` });
   }
 
   for (const card of cards) {
@@ -2850,11 +2844,11 @@ function showNewSessionPopover(project, anchorEl) {
   const rect = anchorEl.getBoundingClientRect();
   const popoverHeight = popover.offsetHeight;
   if (rect.bottom + 4 + popoverHeight > window.innerHeight) {
-    popover.style.top = rect.top - popoverHeight - 4 + "px";
+    popover.style.top = `${rect.top - popoverHeight - 4}px`;
   } else {
-    popover.style.top = rect.bottom + 4 + "px";
+    popover.style.top = `${rect.bottom + 4}px`;
   }
-  popover.style.left = rect.left + "px";
+  popover.style.left = `${rect.left}px`;
 
   // Close on click outside
   function onClickOutside(e) {
@@ -3126,7 +3120,7 @@ async function showNewSessionDialog(project) {
 // --- Settings viewer ---
 async function openSettingsViewer(scope, projectPath) {
   const isProject = scope === "project";
-  const settingsKey = isProject ? "project:" + projectPath : "global";
+  const settingsKey = isProject ? `project:${projectPath}` : "global";
   const current = (await window.api.getSetting(settingsKey)) || {};
   const globalSettings = isProject
     ? (await window.api.getSetting("global")) || {}
@@ -3147,7 +3141,7 @@ async function openSettingsViewer(scope, projectPath) {
   memoryViewer.style.display = "none";
   settingsViewer.style.display = "flex";
 
-  function useGlobalCheckbox(fieldName, label) {
+  function useGlobalCheckbox(fieldName, _label) {
     if (!isProject) return "";
     const useGlobal =
       current[fieldName] === undefined || current[fieldName] === null;
@@ -3309,7 +3303,7 @@ async function openSettingsViewer(scope, projectPath) {
   settingsViewerBody.querySelectorAll(".use-global-cb").forEach((cb) => {
     cb.addEventListener("change", () => {
       const field = cb.dataset.field;
-      const inputs = settingsViewerBody.querySelectorAll(
+      const _inputs = settingsViewerBody.querySelectorAll(
         `#sv-perm-mode, #sv-worktree, #sv-worktree-name, #sv-add-dirs, #sv-visible-count`,
       );
       // Map field name to input element
@@ -3322,7 +3316,7 @@ async function openSettingsViewer(scope, projectPath) {
         addDirs: "sv-add-dirs",
         visibleSessionCount: "sv-visible-count",
       };
-      const input = settingsViewerBody.querySelector("#" + fieldMap[field]);
+      const input = settingsViewerBody.querySelector(`#${fieldMap[field]}`);
       if (input) input.disabled = cb.checked;
     });
   });
@@ -3356,6 +3350,7 @@ async function openSettingsViewer(scope, projectPath) {
               visibleSessionCount: () =>
                 parseInt(
                   settingsViewerBody.querySelector("#sv-visible-count").value,
+                  10,
                 ) || 10,
             };
             if (fieldMap[field]) settings[field] = fieldMap[field]();
@@ -3380,9 +3375,11 @@ async function openSettingsViewer(scope, projectPath) {
         settings.visibleSessionCount =
           parseInt(
             settingsViewerBody.querySelector("#sv-visible-count").value,
+            10,
           ) || 10;
         settings.sessionMaxAgeDays =
-          parseInt(settingsViewerBody.querySelector("#sv-max-age").value) || 3;
+          parseInt(settingsViewerBody.querySelector("#sv-max-age").value, 10) ||
+          3;
         settings.terminalTheme =
           settingsViewerBody.querySelector("#sv-terminal-theme").value ||
           "switchboard";
@@ -3543,7 +3540,7 @@ function showAddProjectDialog() {
   window.addEventListener("mousemove", (e) => {
     if (!dragging) return;
     const width = Math.min(600, Math.max(200, e.clientX));
-    sidebar.style.width = width + "px";
+    sidebar.style.width = `${width}px`;
   });
 
   window.addEventListener("mouseup", () => {
@@ -3562,7 +3559,7 @@ function showAddProjectDialog() {
       }, 1000);
     }
     // Save sidebar width to settings
-    const width = parseInt(sidebar.style.width);
+    const width = parseInt(sidebar.style.width, 10);
     if (width) {
       window.api.getSetting("global").then((g) => {
         const global = g || {};
@@ -3616,7 +3613,7 @@ document.addEventListener("keydown", (e) => {
   if (global) {
     if (global.sidebarWidth) {
       document.getElementById("sidebar").style.width =
-        global.sidebarWidth + "px";
+        `${global.sidebarWidth}px`;
     }
     if (global.visibleSessionCount) {
       visibleSessionCount = global.visibleSessionCount;

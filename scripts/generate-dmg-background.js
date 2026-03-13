@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const { createCanvas } = require("@napi-rs/canvas");
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const WIDTH = 660;
 const HEIGHT = 400;

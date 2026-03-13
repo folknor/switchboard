@@ -1,10 +1,10 @@
-import fs from "fs";
-import path from "path";
-import { parentPort, workerData } from "worker_threads";
+import fs from "node:fs";
+import path from "node:path";
+import { parentPort, workerData } from "node:worker_threads";
 
 const PROJECTS_DIR = workerData.projectsDir;
 
-function deriveProjectPath(folderPath, folder) {
+function deriveProjectPath(folderPath, _folder) {
   try {
     const entries = fs.readdirSync(folderPath, { withFileTypes: true });
     for (const e of entries) {
@@ -104,7 +104,7 @@ function readFolderFromFilesystem(folder) {
             if (text) summary = text.slice(0, 120);
           }
           if (text && textContent.length < 8000) {
-            textContent += text.slice(0, 500) + "\n";
+            textContent += `${text.slice(0, 500)}\n`;
           }
         }
       } catch {}

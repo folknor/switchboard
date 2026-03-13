@@ -1,5 +1,9 @@
+import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import process from "node:process";
-import { randomUUID } from "crypto";
+import { Worker } from "node:worker_threads";
 import {
   app,
   BrowserWindow,
@@ -11,11 +15,7 @@ import {
 } from "electron";
 import log from "electron-log";
 import { autoUpdater as _autoUpdater } from "electron-updater";
-import fs from "fs";
 import pty from "node-pty";
-import os from "os";
-import path from "path";
-import { Worker } from "worker_threads";
 import {
   deleteCachedFolder,
   deleteCachedSession,
@@ -28,7 +28,6 @@ import {
   getAllMeta,
   getCachedByFolder,
   getCachedFolder,
-  getFolderMeta,
   getSetting,
   isCachePopulated,
   isSearchIndexPopulated,
@@ -117,7 +116,7 @@ function createWindow() {
   const bounds = { width: 1400, height: 900 };
 
   let restorePosition = null;
-  if (savedBounds && savedBounds.width && savedBounds.height) {
+  if (savedBounds?.width && savedBounds.height) {
     bounds.width = savedBounds.width;
     bounds.height = savedBounds.height;
 
@@ -306,7 +305,7 @@ function buildMenu() {
 // --- Session cache helpers ---
 
 /** Derive the real project path by reading cwd from the first JSONL entry in the folder */
-function deriveProjectPath(folderPath, folder) {
+function deriveProjectPath(folderPath, _folder) {
   try {
     const entries = fs.readdirSync(folderPath, { withFileTypes: true });
     // Check direct .jsonl files first
@@ -395,7 +394,7 @@ function readSessionFile(filePath, folder, projectPath) {
         if (text) summary = text.slice(0, 120);
       }
       if (text && textContent.length < 8000) {
-        textContent += text.slice(0, 500) + "\n";
+        textContent += `${text.slice(0, 500)}\n`;
       }
     }
     if (!summary || messageCount < 1) return null;
@@ -418,7 +417,7 @@ function readSessionFile(filePath, folder, projectPath) {
 }
 
 /** Read one folder from filesystem by scanning .jsonl files directly */
-function readFolderFromFilesystem(folder) {
+function _readFolderFromFilesystem(folder) {
   const folderPath = path.join(PROJECTS_DIR, folder);
   const projectPath = deriveProjectPath(folderPath, folder);
   if (!projectPath) return { projectPath: null, sessions: [] };
@@ -476,7 +475,7 @@ function refreshFolder(folder) {
   }
 
   const currentIds = new Set();
-  let changed = false;
+  let _changed = false;
 
   for (const file of jsonlFiles) {
     const filePath = path.join(folderPath, file);
@@ -511,7 +510,7 @@ function refreshFolder(folder) {
       ]);
       if (s.customTitle) setName(s.sessionId, s.customTitle);
     }
-    changed = true;
+    _changed = true;
   }
 
   // Remove sessions whose .jsonl files were deleted
@@ -519,7 +518,7 @@ function refreshFolder(folder) {
     if (!currentIds.has(sessionId)) {
       deleteCachedSession(sessionId);
       deleteSearchSession(sessionId);
-      changed = true;
+      _changed = true;
     }
   }
 
@@ -532,7 +531,7 @@ function refreshFolder(folder) {
 }
 
 /** Populate entire cache from filesystem (cold start) */
-function populateCacheFromFilesystem() {
+function _populateCacheFromFilesystem() {
   try {
     const folders = fs
       .readdirSync(PROJECTS_DIR, { withFileTypes: true })
@@ -542,9 +541,7 @@ function populateCacheFromFilesystem() {
     for (const folder of folders) {
       refreshFolder(folder);
     }
-  } catch (err) {
-    console.error("Error populating cache:", err);
-  }
+  } catch {}
 }
 
 /** Build projects response from cached data */
@@ -659,9 +656,7 @@ function backgroundRefresh() {
       setTimeout(() => sendStatus(""), 3000);
       notifyRendererProjectsChanged();
     }
-  } catch (err) {
-    console.error("Error in background refresh:", err);
-  }
+  } catch {}
 }
 
 function notifyRendererProjectsChanged() {
@@ -697,8 +692,7 @@ function populateCacheViaWorker() {
     }
 
     if (!msg.ok) {
-      console.error("Worker scan error:", msg.error);
-      sendStatus("Scan failed: " + msg.error, "error");
+      sendStatus(`Scan failed: ${msg.error}`, "error");
       populatingCache = false;
       return;
     }
@@ -741,7 +735,7 @@ function populateCacheViaWorker() {
 
   worker.on("error", (err) => {
     log.error("[worker-error]", err);
-    sendStatus("Worker error: " + err.message, "error");
+    sendStatus(`Worker error: ${err.message}`, "error");
     populatingCache = false;
   });
 }
@@ -765,7 +759,7 @@ ipcMain.handle("add-project", (_event, projectPath) => {
 
     // Unhide if previously hidden
     const global = getSetting("global") || {};
-    if (global.hiddenProjects && global.hiddenProjects.includes(projectPath)) {
+    if (global.hiddenProjects?.includes(projectPath)) {
       global.hiddenProjects = global.hiddenProjects.filter(
         (p) => p !== projectPath,
       );
@@ -782,7 +776,7 @@ ipcMain.handle("add-project", (_event, projectPath) => {
     // Seed a minimal .jsonl so deriveProjectPath can read the cwd
     if (!fs.readdirSync(folderPath).some((f) => f.endsWith(".jsonl"))) {
       const seedId = randomUUID();
-      const seedFile = path.join(folderPath, seedId + ".jsonl");
+      const seedFile = path.join(folderPath, `${seedId}.jsonl`);
       const now = new Date().toISOString();
       const line = JSON.stringify({
         type: "user",
@@ -792,7 +786,7 @@ ipcMain.handle("add-project", (_event, projectPath) => {
         timestamp: now,
         message: { role: "user", content: "New project" },
       });
-      fs.writeFileSync(seedFile, line + "\n");
+      fs.writeFileSync(seedFile, `${line}\n`);
     }
 
     // Immediately index the new folder so it's in cache before frontend renders
@@ -819,7 +813,7 @@ ipcMain.handle("remove-project", (_event, projectPath) => {
     const folder = projectPath.replace(/[/_]/g, "-").replace(/^-/, "-");
     deleteCachedFolder(folder);
     deleteSearchFolder(folder);
-    deleteSetting("project:" + projectPath);
+    deleteSetting(`project:${projectPath}`);
 
     notifyRendererProjectsChanged();
     return { ok: true };
@@ -851,8 +845,7 @@ ipcMain.handle("get-projects", (_event, showArchived) => {
     }
 
     return projects;
-  } catch (err) {
-    console.error("Error listing projects:", err);
+  } catch {
     return [];
   }
 });
@@ -869,10 +862,9 @@ ipcMain.handle("get-plans", () => {
         const stat = fs.statSync(filePath);
         const content = fs.readFileSync(filePath, "utf8");
         const firstLine = content.split("\n").find((l) => l.trim());
-        const title =
-          firstLine && firstLine.startsWith("# ")
-            ? firstLine.slice(2).trim()
-            : file.replace(/\.md$/, "");
+        const title = firstLine?.startsWith("# ")
+          ? firstLine.slice(2).trim()
+          : file.replace(/\.md$/, "");
         plans.push({
           filename: file,
           title,
@@ -897,8 +889,7 @@ ipcMain.handle("get-plans", () => {
     } catch {}
 
     return plans;
-  } catch (err) {
-    console.error("Error reading plans:", err);
+  } catch {
     return [];
   }
 });
@@ -909,8 +900,7 @@ ipcMain.handle("read-plan", (_event, filename) => {
     const filePath = path.join(PLANS_DIR, path.basename(filename));
     const content = fs.readFileSync(filePath, "utf8");
     return { content, filePath };
-  } catch (err) {
-    console.error("Error reading plan:", err);
+  } catch {
     return { content: "", filePath: "" };
   }
 });
@@ -925,7 +915,6 @@ ipcMain.handle("save-plan", (_event, filePath, content) => {
     fs.writeFileSync(resolved, content, "utf8");
     return { ok: true };
   } catch (err) {
-    console.error("Error saving plan:", err);
     return { ok: false, error: err.message };
   }
 });
@@ -936,8 +925,7 @@ ipcMain.handle("get-stats", () => {
     if (!fs.existsSync(STATS_CACHE_PATH)) return null;
     const raw = fs.readFileSync(STATS_CACHE_PATH, "utf8");
     return JSON.parse(raw);
-  } catch (err) {
-    console.error("Error reading stats cache:", err);
+  } catch {
     return null;
   }
 });
@@ -1014,9 +1002,7 @@ ipcMain.handle("get-memories", () => {
         }
       }
     }
-  } catch (err) {
-    console.error("Error scanning memories:", err);
-  }
+  } catch {}
 
   // Index memories for FTS
   try {
@@ -1026,7 +1012,7 @@ ipcMain.handle("get-memories", () => {
         id: m.filePath,
         type: "memory",
         folder: null,
-        title: m.label + " " + m.filename,
+        title: `${m.label} ${m.filename}`,
         body: fs.readFileSync(m.filePath, "utf8"),
       })),
     );
@@ -1044,8 +1030,7 @@ ipcMain.handle("read-memory", (_event, filePath) => {
       return "";
     }
     return fs.readFileSync(resolved, "utf8");
-  } catch (err) {
-    console.error("Error reading memory file:", err);
+  } catch {
     return "";
   }
 });
@@ -1083,7 +1068,7 @@ const SETTING_DEFAULTS = {
 
 ipcMain.handle("get-effective-settings", (_event, projectPath) => {
   const global = getSetting("global") || {};
-  const project = projectPath ? getSetting("project:" + projectPath) || {} : {};
+  const project = projectPath ? getSetting(`project:${projectPath}`) || {} : {};
   const effective = { ...SETTING_DEFAULTS };
   for (const key of Object.keys(SETTING_DEFAULTS)) {
     if (global[key] !== undefined && global[key] !== null) {
@@ -1140,7 +1125,7 @@ ipcMain.handle("rename-session", (_event, sessionId, name) => {
 ipcMain.handle("read-session-jsonl", (_event, sessionId) => {
   const folder = getCachedFolder(sessionId);
   if (!folder) return { error: "Session not found in cache" };
-  const jsonlPath = path.join(PROJECTS_DIR, folder, sessionId + ".jsonl");
+  const jsonlPath = path.join(PROJECTS_DIR, folder, `${sessionId}.jsonl`);
   try {
     const content = fs.readFileSync(jsonlPath, "utf-8");
     const entries = [];
@@ -1225,7 +1210,7 @@ ipcMain.handle(
       // Read slug from the session's jsonl file (for plan-accept detection)
       if (!isNew) {
         try {
-          const jsonlPath = path.join(claudeProjectDir, sessionId + ".jsonl");
+          const jsonlPath = path.join(claudeProjectDir, `${sessionId}.jsonl`);
           const head = fs.readFileSync(jsonlPath, "utf8").slice(0, 8000);
           const firstLines = head.split("\n").filter(Boolean);
           for (const line of firstLines) {
@@ -1268,7 +1253,7 @@ ipcMain.handle(
         setTimeout(() => {
           if (!ptyProcess._isDisposed) {
             try {
-              ptyProcess.write(claudeShim + " clear\n");
+              ptyProcess.write(`${claudeShim} clear\n`);
             } catch {}
           }
         }, 300);
@@ -1310,7 +1295,7 @@ ipcMain.handle(
         }
 
         if (sessionOptions?.preLaunchCmd) {
-          claudeCmd = sessionOptions.preLaunchCmd + " " + claudeCmd;
+          claudeCmd = `${sessionOptions.preLaunchCmd} ${claudeCmd}`;
         }
 
         ptyProcess = pty.spawn(shell, ["-l", "-i", "-c", claudeCmd], {
@@ -1388,8 +1373,10 @@ ipcMain.handle(
           /\x1b\]9;4;(\d)(?:;(\d+))?(?:\x07|\x1b\\)/,
         );
         if (progressMatch) {
-          const state = parseInt(progressMatch[1]);
-          const percent = progressMatch[2] ? parseInt(progressMatch[2]) : -1;
+          const state = parseInt(progressMatch[1], 10);
+          const percent = progressMatch[2]
+            ? parseInt(progressMatch[2], 10)
+            : -1;
           log.debug(
             `[OSC 9;4] session=${currentId} state=${state} percent=${percent}`,
           );
@@ -1590,7 +1577,7 @@ function detectSessionTransitions(folder) {
     ) {
       if (!(session.exited || session.isPlainTerminal) && session.forkFrom) {
         log.info(
-          `[fork-detect] skipped session=${sessionId} forkFrom=${session.forkFrom || "none"} reason=${session.exited ? "exited" : session.isPlainTerminal ? "terminal" : !session.knownJsonlFiles ? "noKnown" : "folderMismatch(" + session.projectFolder + " vs " + folder + ")"}`,
+          `[fork-detect] skipped session=${sessionId} forkFrom=${session.forkFrom || "none"} reason=${session.exited ? "exited" : session.isPlainTerminal ? "terminal" : !session.knownJsonlFiles ? "noKnown" : `folderMismatch(${session.projectFolder} vs ${folder})`}`,
         );
       }
       continue;
@@ -1655,7 +1642,7 @@ function detectSessionTransitions(folder) {
 
       // Plan-accept: shared slug + planContent + old session has ExitPlanMode
       if (!matched && signals.planContent && signals.slug) {
-        const oldFilePath = path.join(folderPath, sessionId + ".jsonl");
+        const oldFilePath = path.join(folderPath, `${sessionId}.jsonl`);
         const oldTail = readOldSessionTail(oldFilePath);
         if (oldTail.hasExitPlanMode && oldTail.slug === signals.slug) {
           // Temporal check: new file created within 30s of old file's last modification
@@ -1751,12 +1738,8 @@ function startProjectsWatcher() {
       },
     );
 
-    projectsWatcher.on("error", (err) => {
-      console.error("Projects watcher error:", err);
-    });
-  } catch (err) {
-    console.error("Failed to start projects watcher:", err);
-  }
+    projectsWatcher.on("error", (_err) => {});
+  } catch {}
 }
 
 // --- IPC: auto-updater ---

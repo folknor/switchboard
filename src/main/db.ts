@@ -1,7 +1,7 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import Database from "better-sqlite3";
-import fs from "fs";
-import os from "os";
-import path from "path";
 
 const DATA_DIR = path.join(os.homedir(), ".switchboard");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -19,10 +19,10 @@ if (!fs.existsSync(DB_PATH)) {
     if (fs.existsSync(oldPath)) {
       fs.renameSync(oldPath, DB_PATH);
       try {
-        fs.renameSync(oldPath + "-wal", DB_PATH + "-wal");
+        fs.renameSync(`${oldPath}-wal`, `${DB_PATH}-wal`);
       } catch {}
       try {
-        fs.renameSync(oldPath + "-shm", DB_PATH + "-shm");
+        fs.renameSync(`${oldPath}-shm`, `${DB_PATH}-shm`);
       } catch {}
       break;
     }
@@ -309,7 +309,7 @@ function searchByType(type, query, limit = 50) {
   try {
     // Wrap in double quotes for exact substring matching with trigram tokenizer.
     // This prevents FTS5 from splitting on punctuation (e.g. "spec.md" → "spec" + "md")
-    const escaped = '"' + query.replace(/"/g, '""') + '"';
+    const escaped = `"${query.replace(/"/g, '""')}"`;
     return stmts.searchQuery.all(type, escaped, limit);
   } catch {
     return [];
