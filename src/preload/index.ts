@@ -63,11 +63,6 @@ contextBridge.exposeInMainWorld("api", {
       callback(sessionId, data),
     );
   },
-  onSessionDetected: (callback: (tempId: string, realId: string) => void) => {
-    ipcRenderer.on("session-detected", (_event, tempId, realId) =>
-      callback(tempId, realId),
-    );
-  },
   onProcessExited: (
     callback: (sessionId: string, exitCode: number) => void,
   ) => {

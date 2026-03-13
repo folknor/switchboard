@@ -249,35 +249,6 @@ export function initTerminalListeners(
     }
   });
 
-  window.api.onSessionDetected((tempId: string, realId: string) => {
-    const entry = openSessions.get(tempId);
-    if (!entry) return;
-
-    entry.session.sessionId = realId;
-    if (activeSessionId === tempId) setActiveSession(realId);
-
-    // Re-key in openSessions
-    openSessions.delete(tempId);
-    openSessions.set(realId, entry);
-
-    terminalHeaderId.textContent = realId;
-    terminalHeaderName.textContent = "New session";
-
-    // Refresh sidebar to show the new session, then select it
-    void loadProjectsFn().then(() => {
-      const item: Element | null = document.querySelector(
-        `[data-session-id="${realId}"]`,
-      );
-      if (item) {
-        for (const el of document.querySelectorAll(".session-item.active")) {
-          el.classList.remove("active");
-        }
-        item.classList.add("active");
-      }
-    });
-    void pollActiveSessions();
-  });
-
   window.api.onSessionForked((oldId: string, newId: string) => {
     const entry = openSessions.get(oldId);
     if (!entry) return;

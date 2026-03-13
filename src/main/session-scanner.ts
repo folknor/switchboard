@@ -5,6 +5,7 @@ import log from "electron-log";
 import { PROJECTS_DIR } from "./constants";
 import {
   deleteCachedFolder,
+  deleteCachedSession,
   deleteSearchFolder,
   deleteSearchSession,
   getAllCached,
@@ -127,7 +128,7 @@ export function refreshFolder(folder: string): void {
   // Remove sessions whose .jsonl files were deleted
   for (const sessionId of cachedMap.keys()) {
     if (!currentIds.has(sessionId)) {
-      deleteCachedFolder(sessionId);
+      deleteCachedSession(sessionId);
       deleteSearchSession(sessionId);
     }
   }
@@ -298,6 +299,7 @@ export function backgroundRefresh(
     for (const folder of metaMap.keys()) {
       if (!existingFolders.has(folder)) {
         deleteCachedFolder(folder);
+        deleteSearchFolder(folder);
         changed = true;
       }
     }

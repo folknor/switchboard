@@ -12,7 +12,12 @@ import {
 import log from "electron-log";
 import { setupAutoUpdater } from "./auto-updater";
 import { PROJECTS_DIR } from "./constants";
-import { deleteCachedFolder, getSetting, setSetting } from "./db";
+import {
+  deleteCachedFolder,
+  deleteSearchFolder,
+  getSetting,
+  setSetting,
+} from "./db";
 import { detectSessionTransitions } from "./fork-detection";
 import { registerIpcHandlers } from "./ipc-handlers";
 import { activeSessions, registerPtyHandlers, warmupPty } from "./pty-manager";
@@ -269,6 +274,7 @@ function startProjectsWatcher(): void {
         refreshFolder(folder);
       } else {
         deleteCachedFolder(folder);
+        deleteSearchFolder(folder);
       }
       changed = true;
     }

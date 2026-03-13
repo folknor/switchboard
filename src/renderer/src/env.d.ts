@@ -45,7 +45,6 @@ interface Window {
     closeTerminal(id: string): void;
 
     onTerminalData(callback: (sessionId: string, data: string) => void): void;
-    onSessionDetected(callback: (tempId: string, realId: string) => void): void;
     onProcessExited(
       callback: (sessionId: string, exitCode: number) => void,
     ): void;

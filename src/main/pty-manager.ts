@@ -9,6 +9,11 @@ import type { IPty } from "node-pty";
 import pty from "node-pty";
 import { cleanPtyEnv, MAX_BUFFER_SIZE, PROJECTS_DIR } from "./constants";
 
+/** Escape a string for safe inclusion in a single-quoted shell argument */
+function shellEscape(s: string): string {
+  return `'${s.replace(/'/g, "'\\''")}'`;
+}
+
 export interface PtySession {
   pty: IPty;
   rendererAttached: boolean;
@@ -260,12 +265,12 @@ export function registerPtyHandlers(
             if (sessionOptions.dangerouslySkipPermissions) {
               claudeCmd += " --dangerously-skip-permissions";
             } else if (sessionOptions.permissionMode) {
-              claudeCmd += ` --permission-mode "${sessionOptions.permissionMode}"`;
+              claudeCmd += ` --permission-mode ${shellEscape(String(sessionOptions.permissionMode))}`;
             }
             if (sessionOptions.worktree) {
               claudeCmd += " --worktree";
               if (sessionOptions.worktreeName) {
-                claudeCmd += ` "${sessionOptions.worktreeName}"`;
+                claudeCmd += ` ${shellEscape(String(sessionOptions.worktreeName))}`;
               }
             }
             if (sessionOptions.chrome) {
@@ -277,13 +282,15 @@ export function registerPtyHandlers(
                 .map((d: string) => d.trim())
                 .filter(Boolean);
               for (const dir of dirs) {
-                claudeCmd += ` --add-dir "${dir}"`;
+                claudeCmd += ` --add-dir ${shellEscape(dir)}`;
               }
             }
           }
 
           if (sessionOptions?.preLaunchCmd) {
-            claudeCmd = `${sessionOptions.preLaunchCmd} ${claudeCmd}`;
+            // preLaunchCmd is intentionally not escaped — it's a user-provided
+            // shell command (e.g. "env FOO=bar") that must be evaluated by the shell
+            claudeCmd = `${String(sessionOptions.preLaunchCmd)} ${claudeCmd}`;
           }
 
           ptyProcess = pty.spawn(shell, ["-l", "-i", "-c", claudeCmd], {
