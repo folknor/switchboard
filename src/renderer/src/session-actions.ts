@@ -1,5 +1,6 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 import {
   activeSessionId,
@@ -27,6 +28,40 @@ import {
 } from "./terminal";
 import { escapeHtml } from "./utils";
 import { hidePlanViewer } from "./viewers";
+
+/** Create a Terminal with WebGL renderer (DOM fallback), FitAddon, and WebLinksAddon */
+function createTerminal(container: HTMLElement): {
+  terminal: Terminal;
+  fitAddon: FitAddon;
+} {
+  const terminal = new Terminal({
+    fontSize: 12,
+    fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+    theme: TERMINAL_THEME,
+    cursorBlink: true,
+    scrollback: 10000,
+    convertEol: true,
+  });
+
+  const fitAddon = new FitAddon();
+  terminal.loadAddon(fitAddon);
+  terminal.loadAddon(
+    new WebLinksAddon((_event, url) => window.api.openExternal(url)),
+  );
+  terminal.open(container);
+
+  // Activate WebGL renderer — falls back to DOM if GPU unavailable
+  try {
+    terminal.loadAddon(new WebglAddon());
+  } catch (e: unknown) {
+    window.api.logWarn(
+      `[terminal] WebGL renderer failed, using DOM fallback: ${(e as Error).message}`,
+    );
+  }
+
+  fitAddon.fit();
+  return { terminal, fitAddon };
+}
 
 export async function resolveDefaultSessionOptions(
   project: ProjectObj,
@@ -118,22 +153,7 @@ export async function launchNewSession(
   container.className = "terminal-container visible";
   terminalsEl.appendChild(container);
 
-  const terminal: Terminal = new Terminal({
-    fontSize: 12,
-    fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
-    theme: TERMINAL_THEME,
-    cursorBlink: true,
-    scrollback: 10000,
-    convertEol: true,
-  });
-
-  const fitAddon: FitAddon = new FitAddon();
-  terminal.loadAddon(fitAddon);
-  terminal.loadAddon(
-    new WebLinksAddon((_event, url) => window.api.openExternal(url)),
-  );
-  terminal.open(container);
-  fitAddon.fit();
+  const { terminal, fitAddon } = createTerminal(container);
 
   const entry = {
     terminal,
@@ -243,22 +263,7 @@ export async function openSession(session: SessionObj): Promise<void> {
   container.className = "terminal-container visible";
   terminalsEl.appendChild(container);
 
-  const terminal: Terminal = new Terminal({
-    fontSize: 12,
-    fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
-    theme: TERMINAL_THEME,
-    cursorBlink: true,
-    scrollback: 10000,
-    convertEol: true,
-  });
-
-  const fitAddon: FitAddon = new FitAddon();
-  terminal.loadAddon(fitAddon);
-  terminal.loadAddon(
-    new WebLinksAddon((_event, url) => window.api.openExternal(url)),
-  );
-  terminal.open(container);
-  fitAddon.fit();
+  const { terminal, fitAddon } = createTerminal(container);
 
   const entry = {
     terminal,
@@ -369,22 +374,7 @@ export async function launchTerminalSession(
   container.className = "terminal-container visible";
   terminalsEl.appendChild(container);
 
-  const terminal: Terminal = new Terminal({
-    fontSize: 12,
-    fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
-    theme: TERMINAL_THEME,
-    cursorBlink: true,
-    scrollback: 10000,
-    convertEol: true,
-  });
-
-  const fitAddon: FitAddon = new FitAddon();
-  terminal.loadAddon(fitAddon);
-  terminal.loadAddon(
-    new WebLinksAddon((_event, url) => window.api.openExternal(url)),
-  );
-  terminal.open(container);
-  fitAddon.fit();
+  const { terminal, fitAddon } = createTerminal(container);
 
   const entry = {
     terminal,
