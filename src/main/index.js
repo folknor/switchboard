@@ -1,14 +1,25 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } = require('electron');
-const { Worker } = require('worker_threads');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
-const pty = require('node-pty');
-const log = require('electron-log');
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron';
+import { Worker } from 'worker_threads';
+import { randomUUID } from 'crypto';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import pty from 'node-pty';
+import log from 'electron-log';
+import { autoUpdater as _autoUpdater } from 'electron-updater';
+import {
+  getAllMeta, toggleStar, setName, setArchived,
+  isCachePopulated, getAllCached, getCachedByFolder, getCachedFolder, upsertCachedSessions,
+  deleteCachedSession, deleteCachedFolder,
+  getFolderMeta, getAllFolderMeta, setFolderMeta,
+  upsertSearchEntries, deleteSearchSession, deleteSearchFolder, deleteSearchType,
+  searchByType, isSearchIndexPopulated,
+  getSetting, setSetting, deleteSetting,
+} from './db';
+
 log.transports.file.level = app.isPackaged ? 'info' : 'debug';
 log.transports.console.level = app.isPackaged ? 'info' : 'debug';
 
-try { require('electron-reloader')(module, { watchRenderer: true }); } catch {};
 
 // Clean env for child processes — strip Electron internals that cause nested
 // Electron apps (or node-pty inside them) to malfunction.
@@ -24,7 +35,7 @@ const cleanPtyEnv = Object.fromEntries(
 // --- Auto-updater (only in packaged builds) ---
 let autoUpdater = null;
 if (app.isPackaged || process.env.FORCE_UPDATER) {
-  autoUpdater = require('electron-updater').autoUpdater;
+  autoUpdater = _autoUpdater;
   autoUpdater.logger = log;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -48,15 +59,6 @@ if (app.isPackaged || process.env.FORCE_UPDATER) {
     }
   });
 }
-const {
-  getAllMeta, toggleStar, setName, setArchived,
-  isCachePopulated, getAllCached, getCachedByFolder, getCachedFolder, upsertCachedSessions,
-  deleteCachedSession, deleteCachedFolder,
-  getFolderMeta, getAllFolderMeta, setFolderMeta,
-  upsertSearchEntries, deleteSearchSession, deleteSearchFolder, deleteSearchType,
-  searchByType, isSearchIndexPopulated,
-  getSetting, setSetting, deleteSetting,
-} = require('./db');
 
 const PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
 const PLANS_DIR = path.join(os.homedir(), '.claude', 'plans');
@@ -97,9 +99,9 @@ function createWindow() {
     minWidth: 800,
     minHeight: 500,
     title: 'Switchboard',
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    icon: path.join(__dirname, '../../build/icon.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
@@ -110,7 +112,11 @@ function createWindow() {
     mainWindow.setBounds({ ...restorePosition, width: bounds.width, height: bounds.height });
   }
 
-  mainWindow.loadFile(path.join(__dirname, 'public', 'index.html'));
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  }
 
   // Open external links in the system browser instead of a child BrowserWindow
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -554,7 +560,7 @@ function populateCacheViaWorker() {
   populatingCache = true;
   sendStatus('Scanning projects\u2026', 'active');
 
-  const worker = new Worker(path.join(__dirname, 'workers', 'scan-projects.js'), {
+  const worker = new Worker(path.join(__dirname, 'workers/scan-projects.js'), {
     workerData: { projectsDir: PROJECTS_DIR },
   });
 
@@ -640,10 +646,10 @@ ipcMain.handle('add-project', (_event, projectPath) => {
 
     // Seed a minimal .jsonl so deriveProjectPath can read the cwd
     if (!fs.readdirSync(folderPath).some(f => f.endsWith('.jsonl'))) {
-      const seedId = require('crypto').randomUUID();
+      const seedId = randomUUID();
       const seedFile = path.join(folderPath, seedId + '.jsonl');
       const now = new Date().toISOString();
-      const line = JSON.stringify({ type: 'user', cwd: projectPath, sessionId: seedId, uuid: require('crypto').randomUUID(), timestamp: now, message: { role: 'user', content: 'New project' } });
+      const line = JSON.stringify({ type: 'user', cwd: projectPath, sessionId: seedId, uuid: randomUUID(), timestamp: now, message: { role: 'user', content: 'New project' } });
       fs.writeFileSync(seedFile, line + '\n');
     }
 

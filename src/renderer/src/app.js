@@ -1,3 +1,11 @@
+import '@xterm/xterm/css/xterm.css';
+import './style.css';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
+import morphdom from 'morphdom';
+import { createPlanEditor, CMEditorView, CMEditorState } from './codemirror-setup.js';
+
 const statusBarInfo = document.getElementById('status-bar-info');
 const statusBarActivity = document.getElementById('status-bar-activity');
 const terminalsEl = document.getElementById('terminals');
@@ -1385,9 +1393,9 @@ async function launchNewSession(project, sessionOptions) {
     convertEol: true,
   });
 
-  const fitAddon = new FitAddon.FitAddon();
+  const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.loadAddon(new WebLinksAddon.WebLinksAddon((_event, url) => window.api.openExternal(url)));
+  terminal.loadAddon(new WebLinksAddon((_event, url) => window.api.openExternal(url)));
   terminal.open(container);
   fitAddon.fit();
 
@@ -1498,9 +1506,9 @@ async function openSession(session) {
     convertEol: true,
   });
 
-  const fitAddon = new FitAddon.FitAddon();
+  const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.loadAddon(new WebLinksAddon.WebLinksAddon((_event, url) => window.api.openExternal(url)));
+  terminal.loadAddon(new WebLinksAddon((_event, url) => window.api.openExternal(url)));
   terminal.open(container);
   fitAddon.fit();
 
@@ -1718,7 +1726,7 @@ async function openPlan(plan) {
 
   // Create or update CodeMirror editor
   if (!planEditorView) {
-    planEditorView = window.createPlanEditor(planViewerEditorEl);
+    planEditorView = createPlanEditor(planViewerEditorEl);
   }
   planEditorView.dispatch({
     changes: { from: 0, to: planEditorView.state.doc.length, insert: currentPlanContent },
@@ -2476,9 +2484,9 @@ async function launchTerminalSession(project) {
     convertEol: true,
   });
 
-  const fitAddon = new FitAddon.FitAddon();
+  const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.loadAddon(new WebLinksAddon.WebLinksAddon((_event, url) => window.api.openExternal(url)));
+  terminal.loadAddon(new WebLinksAddon((_event, url) => window.api.openExternal(url)));
   terminal.open(container);
   fitAddon.fit();
 
@@ -3020,7 +3028,7 @@ setTimeout(() => {
   warmEl.style.cssText = 'position:absolute;left:-9999px;width:400px;height:200px;';
   document.body.appendChild(warmEl);
   const warmTerm = new Terminal({ cols: 80, rows: 10 });
-  const warmFit = new FitAddon.FitAddon();
+  const warmFit = new FitAddon();
   warmTerm.loadAddon(warmFit);
   warmTerm.open(warmEl);
   warmTerm.write(' ');

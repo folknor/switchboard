@@ -1,9 +1,9 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const os = require('os');
+import Database from 'better-sqlite3';
+import path from 'path';
+import os from 'os';
+import fs from 'fs';
 
 const DATA_DIR = path.join(os.homedir(), '.switchboard');
-const fs = require('fs');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH = path.join(DATA_DIR, 'switchboard.db');
@@ -297,7 +297,7 @@ function deleteSetting(key) {
   stmts.settingsDelete.run(key);
 }
 
-module.exports = {
+export {
   getMeta, getAllMeta, setName, toggleStar, setArchived,
   isCachePopulated, getAllCached, getCachedByFolder, getCachedFolder, upsertCachedSessions,
   deleteCachedSession, deleteCachedFolder,

@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Switchboard</title>
-  <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css">
-  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app-container">
@@ -107,11 +105,6 @@
     <button id="update-dismiss-btn">Later</button>
   </div>
   <div id="status-bar"><span id="status-bar-info"></span><span id="status-bar-activity"></span><span id="status-bar-updater"></span></div>
-  <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
-  <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
-  <script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
-  <script src="../node_modules/morphdom/dist/morphdom-umd.js"></script>
-  <script src="codemirror-bundle.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="./src/app.js"></script>
 </body>
 </html>

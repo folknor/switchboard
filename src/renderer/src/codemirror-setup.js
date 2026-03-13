@@ -54,6 +54,4 @@ function createPlanEditor(parent) {
   return view;
 }
 
-window.createPlanEditor = createPlanEditor;
-window.CMEditorView = EditorView;
-window.CMEditorState = EditorState;
+export { createPlanEditor, EditorView as CMEditorView, EditorState as CMEditorState };

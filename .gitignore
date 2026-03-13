@@ -1,9 +1,9 @@
 node_modules/
 dist/
+out/
 *.db
 *.db-wal
 *.db-shm
-public/codemirror-bundle.js
 .DS_Store
 *.pem
 .env

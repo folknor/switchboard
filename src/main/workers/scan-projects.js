@@ -1,6 +1,6 @@
-const { parentPort, workerData } = require('worker_threads');
-const fs = require('fs');
-const path = require('path');
+import { parentPort, workerData } from 'worker_threads';
+import fs from 'fs';
+import path from 'path';
 
 const PROJECTS_DIR = workerData.projectsDir;
 
