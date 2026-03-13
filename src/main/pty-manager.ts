@@ -353,7 +353,8 @@ export function registerPtyHandlers(
             const code = m[1];
             const payload = m[2].slice(0, 120);
             // Skip notification (9) — already logged below
-            if (code !== "9")
+            // Skip hyperlinks (8) — too noisy (Claude Code emits them for file paths)
+            if (code !== "9" && code !== "8")
               log.debug(
                 `[OSC ${code}] session=${currentId} payload="${payload}"`,
               );
