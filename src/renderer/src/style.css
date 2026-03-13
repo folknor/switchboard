@@ -10,6 +10,46 @@ html, body {
 
 body { display: flex; flex-direction: column; }
 
+/* ========== TITLE BAR (frameless) ========== */
+#titlebar {
+  height: 32px;
+  min-height: 32px;
+  background: #0a0a10;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+#titlebar-title {
+  font-size: 12px;
+  color: #555568;
+  margin-left: 4px;
+}
+
+#titlebar-controls {
+  margin-left: auto;
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+#titlebar-controls button {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 14px;
+  width: 36px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#titlebar-controls button:hover { background: rgba(255,255,255,0.08); color: #ccc; }
+#win-close:hover { background: #c42b1c !important; color: #fff !important; }
+
 #app-container {
   display: flex;
   flex: 1;
@@ -84,7 +124,6 @@ body { display: flex; flex-direction: column; }
 }
 
 #status-bar-activity {
-  margin-left: auto;
   white-space: nowrap;
   color: #8088ff;
 }
@@ -98,6 +137,28 @@ body { display: flex; flex-direction: column; }
   color: #888;
   font-style: italic;
 }
+
+#status-bar-zoom {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+#status-bar-zoom button {
+  background: none;
+  border: none;
+  color: #555568;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+  height: 18px;
+  border-radius: 2px;
+  line-height: 1;
+}
+
+#status-bar-zoom button:hover { background: rgba(255,255,255,0.08); color: #aaa; }
+#zoom-reset { min-width: 32px; font-size: 10px; }
 
 /* ========== SIDEBAR ========== */
 #sidebar {

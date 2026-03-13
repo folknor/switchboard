@@ -76,6 +76,7 @@ function createWindow(): void {
     ...bounds,
     minWidth: 800,
     minHeight: 500,
+    frame: false,
     title: "Switchboard",
     icon: path.join(__dirname, "../../build/icon.png"),
     webPreferences: {
@@ -327,6 +328,28 @@ ipcMain.on(
     else log.warn("[renderer]", msg);
   },
 );
+
+// --- Zoom controls ---
+ipcMain.handle("zoom-get", (): number => {
+  if (!mainWindow) return 0;
+  return mainWindow.webContents.getZoomLevel();
+});
+
+ipcMain.handle(
+  "zoom-set",
+  (_event: Electron.IpcMainInvokeEvent, level: number): void => {
+    if (!mainWindow) return;
+    mainWindow.webContents.setZoomLevel(level);
+  },
+);
+
+// --- Window controls (frameless) ---
+ipcMain.on("window-minimize", () => mainWindow?.minimize());
+ipcMain.on("window-maximize", () => {
+  if (mainWindow?.isMaximized()) mainWindow.unmaximize();
+  else mainWindow?.maximize();
+});
+ipcMain.on("window-close", () => mainWindow?.close());
 
 // --- Register all IPC handlers ---
 registerPtyHandlers(getMainWindow);

@@ -45,6 +45,13 @@ interface Window {
     logWarn(msg: string): void;
     logError(msg: string): void;
 
+    zoomGet(): Promise<number>;
+    zoomSet(level: number): Promise<void>;
+
+    windowMinimize(): void;
+    windowMaximize(): void;
+    windowClose(): void;
+
     sendInput(id: string, data: string): void;
     resizeTerminal(id: string, cols: number, rows: number): void;
     closeTerminal(id: string): void;

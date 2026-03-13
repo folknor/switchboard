@@ -6,6 +6,14 @@
   <title>Switchboard</title>
 </head>
 <body>
+  <div id="titlebar">
+    <span id="titlebar-title">Switchboard</span>
+    <div id="titlebar-controls">
+      <button id="win-minimize" title="Minimize">─</button>
+      <button id="win-maximize" title="Maximize">□</button>
+      <button id="win-close" title="Close">×</button>
+    </div>
+  </div>
   <div id="app-container">
   <div id="sidebar">
     <div id="sidebar-header">
@@ -104,7 +112,16 @@
     <button id="update-restart-btn">Restart</button>
     <button id="update-dismiss-btn">Later</button>
   </div>
-  <div id="status-bar"><span id="status-bar-info"></span><span id="status-bar-activity"></span><span id="status-bar-updater"></span></div>
+  <div id="status-bar">
+    <span id="status-bar-info"></span>
+    <span id="status-bar-activity"></span>
+    <span id="status-bar-updater"></span>
+    <span id="status-bar-zoom">
+      <button id="zoom-out" title="Zoom out (Ctrl+-)">−</button>
+      <button id="zoom-reset" title="Reset zoom (Ctrl+0)">100%</button>
+      <button id="zoom-in" title="Zoom in (Ctrl+=)">+</button>
+    </span>
+  </div>
   <script type="module" src="./src/app.ts"></script>
 </body>
 </html>

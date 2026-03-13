@@ -641,3 +641,45 @@ const updaterHandler = (type: string, data: any): void => {
   }
 };
 window.api.onUpdaterEvent(updaterHandler);
+
+// --- Window controls (frameless) ---
+document
+  .getElementById("win-minimize")
+  ?.addEventListener("click", () => window.api.windowMinimize());
+document
+  .getElementById("win-maximize")
+  ?.addEventListener("click", () => window.api.windowMaximize());
+document
+  .getElementById("win-close")
+  ?.addEventListener("click", () => window.api.windowClose());
+
+// --- Zoom controls ---
+const zoomResetBtn: HTMLElement | null = document.getElementById("zoom-reset");
+
+function zoomLevelToPercent(level: number): number {
+  return Math.round(100 * 1.2 ** level);
+}
+
+async function updateZoomDisplay(): Promise<void> {
+  const level: number = await window.api.zoomGet();
+  if (zoomResetBtn) zoomResetBtn.textContent = `${zoomLevelToPercent(level)}%`;
+}
+
+document.getElementById("zoom-in")?.addEventListener("click", async () => {
+  const level: number = await window.api.zoomGet();
+  await window.api.zoomSet(level + 1);
+  void updateZoomDisplay();
+});
+
+document.getElementById("zoom-out")?.addEventListener("click", async () => {
+  const level: number = await window.api.zoomGet();
+  await window.api.zoomSet(level - 1);
+  void updateZoomDisplay();
+});
+
+zoomResetBtn?.addEventListener("click", async () => {
+  await window.api.zoomSet(0);
+  void updateZoomDisplay();
+});
+
+void updateZoomDisplay();

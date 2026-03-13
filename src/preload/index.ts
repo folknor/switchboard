@@ -50,6 +50,15 @@ contextBridge.exposeInMainWorld("api", {
   logWarn: (msg: string) => ipcRenderer.send("renderer-log", "warn", msg),
   logError: (msg: string) => ipcRenderer.send("renderer-log", "error", msg),
 
+  // Zoom
+  zoomGet: () => ipcRenderer.invoke("zoom-get"),
+  zoomSet: (level: number) => ipcRenderer.invoke("zoom-set", level),
+
+  // Window controls (frameless)
+  windowMinimize: () => ipcRenderer.send("window-minimize"),
+  windowMaximize: () => ipcRenderer.send("window-maximize"),
+  windowClose: () => ipcRenderer.send("window-close"),
+
   // Send (fire-and-forget)
   sendInput: (id: string, data: string) =>
     ipcRenderer.send("terminal-input", id, data),
