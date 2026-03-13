@@ -33,9 +33,10 @@ const noopLogger: SessionReaderLogger = {
   warn: () => {},
 };
 
-/** Read just the first line of a file without loading the whole thing into memory */
+/** Read just the first line of a file without loading the whole thing into memory.
+ *  Reads in 64KB chunks until a newline is found (handles long first lines). */
 function readFirstLine(filePath: string): string | null {
-  const CHUNK = 4096;
+  const CHUNK: number = 64 * 1024;
   const buf = Buffer.alloc(CHUNK);
   let fd: number;
   try {
@@ -44,11 +45,23 @@ function readFirstLine(filePath: string): string | null {
     return null;
   }
   try {
-    const bytesRead = fs.readSync(fd, buf, 0, CHUNK, 0);
-    if (bytesRead === 0) return null;
-    const chunk = buf.toString("utf8", 0, bytesRead);
-    const newline = chunk.indexOf("\n");
-    return newline >= 0 ? chunk.slice(0, newline) : chunk;
+    let result = "";
+    let offset = 0;
+    for (;;) {
+      const bytesRead = fs.readSync(fd, buf, 0, CHUNK, offset);
+      if (bytesRead === 0) break;
+      const chunk = buf.toString("utf8", 0, bytesRead);
+      const newline = chunk.indexOf("\n");
+      if (newline >= 0) {
+        result += chunk.slice(0, newline);
+        return result || null;
+      }
+      result += chunk;
+      offset += bytesRead;
+      // Safety cap: don't read more than 1MB for a single first line
+      if (offset > 1024 * 1024) return result || null;
+    }
+    return result || null;
   } finally {
     fs.closeSync(fd);
   }
